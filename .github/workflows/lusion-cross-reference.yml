@@ -1,0 +1,33 @@
+name: Read-only Lusion reference capture
+on:
+  push:
+    branches: [audit/lusion-cross-reference-20260928]
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser tools; do not build or deploy the portfolio
+        run: |
+          mkdir -p "$RUNNER_TEMP/lusion-capture"
+          cp scripts/capture-lusion-reference.mjs "$RUNNER_TEMP/lusion-capture/"
+          cd "$RUNNER_TEMP/lusion-capture"
+          npm init -y
+          npm install --save-exact playwright@1.63.0
+          npx playwright install --with-deps chromium webkit
+      - name: Record actual reference journeys and source fingerprints
+        run: cd "$RUNNER_TEMP/lusion-capture" && node capture-lusion-reference.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lusion-reference-capture
+          path: ${{ runner.temp }}/lusion-capture/evidence
+          retention-days: 1
