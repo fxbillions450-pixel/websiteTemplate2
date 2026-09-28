@@ -1,0 +1,1 @@
+'use client'; import {useState} from 'react'; export default function Asset({src,alt,className=''}:{src:string;alt:string;className?:string}){const [bad,setBad]=useState(false);return bad?<div className={`asset-placeholder ${className}`}><span>{src.replace('/assets/','')}</span></div>:<img className={className} src={src} alt={alt} onError={()=>setBad(true)} draggable={false}/>}
