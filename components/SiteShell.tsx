@@ -41,8 +41,10 @@ export default function SiteShell({children,site,projects}:{children:ReactNode;s
   const id=setTimeout(()=>setMounted(false),1100);return()=>clearTimeout(id);
  },[open]);
  useEffect(()=>{
-  const previous=document.body.style.overflow;
-  if(open){document.body.style.overflow='hidden';main.current?.setAttribute('inert','');}else main.current?.removeAttribute('inert');
+  // Only acquire/restore the scroll lock when this menu actually owns it.
+  // Capturing a loader's lock on a closed menu's initial effect restored stale "hidden" later.
+  if(!open){main.current?.removeAttribute('inert');return;}
+  const previous=document.body.style.overflow;document.body.style.overflow='hidden';main.current?.setAttribute('inert','');
   return()=>{document.body.style.overflow=previous;main.current?.removeAttribute('inert');};
  },[open]);
  useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current);gsap.killTweensOf(curtain.current);},[]);
@@ -63,7 +65,7 @@ export default function SiteShell({children,site,projects}:{children:ReactNode;s
     if(e.shiftKey&&document.activeElement===firstLink){e.preventDefault();lastLink?.focus();}else if(!e.shiftKey&&document.activeElement===lastLink){e.preventDefault();firstLink?.focus();}
    }
   }}>
-   <nav aria-label="Main navigation">{groups.map((group,row)=><div className="menu-row" key={row}>{group.map(item=><span className="menu-line" key={item.name} onMouseEnter={()=>setPreview(menuItems.indexOf(item))}><TransitionLink href={item.href}>{item.name}</TransitionLink></span>)}</div>)}</nav>
+   <nav aria-label="Main navigation">{groups.map((group,row)=><div className="menu-row" key={row}>{group.map(item=><span className="menu-line" key={item.name} onMouseEnter={()=>setPreview(menuItems.indexOf(item))}><TransitionLink href={item.href} ariaLabel={item.name}>{item.name}<span className="menu-comma" aria-hidden="true">{item.name==='Info'?'':','}</span></TransitionLink></span>)}</div>)}</nav>
    <div className="menu-preview" key={preview}><Asset src={activeProject.cover} number={activeProject.number} palette={activeProject.palette} alt=""/></div>
    <button className="menu-close-accessible" onClick={close}>Close menu</button>
    <footer className="menu-footer"><span>© {site.name}. 2026</span><span>{site.instagram&&<a href={site.instagram} rel="noopener noreferrer" target="_blank">Instagram</a>}{site.linkedin&&<a href={site.linkedin} rel="noopener noreferrer" target="_blank">LinkedIn</a>}</span></footer>
