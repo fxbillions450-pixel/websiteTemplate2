@@ -1,4 +1,4 @@
-name: Inspect captured reference geometry
+name: Compare reference and rebuilt frames
 on:
   push:
     branches: [audit/inspect-capture-20260928]
@@ -15,23 +15,28 @@ jobs:
           name: reference-interactions
           run-id: 36480789920
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: evidence
-      - name: Print measured interaction states
+          path: reference
+      - uses: actions/download-artifact@v4
+        with:
+          name: portfolio-v2-browser-evidence
+          run-id: 36483573185
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: rebuilt
+      - name: Print compact comparison frames and failure context
         run: |
+          python -m pip install --quiet pillow
           python - <<'PY'
-          import json,glob,os,re
-          for f in sorted(glob.glob('evidence/*.json')):
-            print('\nEVIDENCE_FILE',os.path.basename(f))
-            d=json.load(open(f))
-            if 'resources' in f:
-              print('FONTS',d.get('fonts'))
-              print('CSS',d.get('css'))
-              for s in d.get('scripts',[]):
-                if s.startswith('https:'):print('SCRIPT_URL',s)
-                elif 'gsap' in s or 'scale' in s or 'dragg' in s or 'lenis' in s: print('INLINE_MOTION',s[:18000])
-            elif isinstance(d,dict):
-              for k in ['url','viewport','body','scrollHeight']:print(k,d.get(k))
-              its=[x for x in d.get('items',[]) if x.get('display')!='none' and x['rect']['w']>1 and x['rect']['h']>1]
-              print(json.dumps(its[:35]))
-            else: print(d)
+          from PIL import Image,ImageDraw
+          import glob,base64,io,os
+          print('REFERENCE_FILES',glob.glob('reference/*.png'))
+          for f in glob.glob('rebuilt/test-results/**/error-context.md',recursive=True): print('FAILURE_CONTEXT',open(f).read())
+          for label,patterns in [
+           ('grid',['reference/desktop-scroll-6.png','reference/mobile-02-after-tap.png','rebuilt/test-results/screens/desktop-chromium-02-grid.png','rebuilt/test-results/screens/iphone-webkit-03-panned.png']),
+           ('menu',['reference/desktop-04-menu.png','reference/mobile-04-menu.png','rebuilt/test-results/screens/desktop-chromium-04-menu.png','rebuilt/test-results/screens/iphone-webkit-04-menu.png'])]:
+            sheet=Image.new('RGB',(460,430),'white');draw=ImageDraw.Draw(sheet)
+            for i,p in enumerate(patterns):
+              if not os.path.exists(p):continue
+              image=Image.open(p).convert('RGB');image.thumbnail((290 if i%2==0 else 150,190));x=0 if i%2==0 else 300;y=(i//2)*215+20
+              sheet.paste(image,(x,y));draw.text((x+2,y-16),('REF' if i<2 else 'NEW')+(' PC' if i%2==0 else ' MOBILE'),fill='black')
+            out=io.BytesIO();sheet.save(out,'JPEG',quality=13,optimize=True);print('COMPARE_FRAME',label,base64.b64encode(out.getvalue()).decode())
           PY
