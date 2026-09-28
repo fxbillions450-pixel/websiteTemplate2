@@ -1,0 +1,37 @@
+name: Inspect captured reference geometry
+on:
+  push:
+    branches: [audit/inspect-capture-20260928]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: reference-interactions
+          run-id: 36480789920
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: evidence
+      - name: Print measured interaction states
+        run: |
+          python - <<'PY'
+          import json,glob,os,re
+          for f in sorted(glob.glob('evidence/*.json')):
+            print('\nEVIDENCE_FILE',os.path.basename(f))
+            d=json.load(open(f))
+            if 'resources' in f:
+              print('FONTS',d.get('fonts'))
+              print('CSS',d.get('css'))
+              for s in d.get('scripts',[]):
+                if s.startswith('https:'):print('SCRIPT_URL',s)
+                elif 'gsap' in s or 'scale' in s or 'dragg' in s or 'lenis' in s: print('INLINE_MOTION',s[:18000])
+            elif isinstance(d,dict):
+              for k in ['url','viewport','body','scrollHeight']:print(k,d.get(k))
+              its=[x for x in d.get('items',[]) if x.get('display')!='none' and x['rect']['w']>1 and x['rect']['h']>1]
+              print(json.dumps(its[:35]))
+            else: print(d)
+          PY
