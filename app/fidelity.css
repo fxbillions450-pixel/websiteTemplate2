@@ -1,0 +1,19 @@
+/* Editorial hero typography, independent of the condensed navigation face.
+   The original site's proprietary fonts and images are NOT included. */
+:root{--editorial:'Bodoni Moda','Times New Roman',serif}
+.home-intro{justify-content:flex-end;padding-bottom:10svh}
+.home-intro h1{font-family:var(--editorial);font-weight:400;font-size:min(31svh,calc(145vw / var(--name-columns,8)));letter-spacing:-.06em;line-height:.77;margin:0;max-width:94vw}
+.hero-word-mask{padding:.07em .075em .15em;margin:-.045em 0}
+.explore-trigger{bottom:2.7svh;font-size:clamp(17px,1.8vw,28px)}
+body:has(.project-experience) .site-header,body:has(.info-page) .site-header{color:var(--acid)}
+.tile-caption{font-family:var(--editorial);font-weight:400;line-height:1.15}
+@media(max-width:767px){
+ .home-intro{padding-bottom:16svh}
+ .home-intro h1{font-size:min(24svh,calc(145vw / var(--name-columns,8)));line-height:.77}
+ .home-intro .explore-trigger{font-size:clamp(20px,5.1vw,27px);bottom:8.4svh}
+ .tile-caption{font-size:6.4px}
+}
+@media(max-height:500px) and (pointer:coarse){
+ .home-intro{padding-bottom:15svh}.home-intro h1{font-size:28svh;flex-direction:row;gap:3vw}
+ .home-intro .explore-trigger{bottom:0;font-size:18px}
+}
