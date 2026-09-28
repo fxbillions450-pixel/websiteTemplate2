@@ -5,8 +5,8 @@ import Asset from './Asset';
 import {TransitionLink,useNavigation} from './SiteShell';
 const mod=(n:number,d:number)=>((n%d)+d)%d;
 const limit=(n:number,a:number,b:number)=>Math.max(a,Math.min(b,n));
-/** Independent, small WebGL renderer. No original shader, media, Webflow runtime or typeface files are included. */
-const vertex=`attribute vec2 aPosition;uniform vec4 uRect;uniform vec2 uViewport;uniform float uVelocity;varying vec2 vUv;
+/** Matching precision across shader stages is required for shared uniforms and varyings. */
+const vertex=`precision mediump float;attribute vec2 aPosition;uniform vec4 uRect;uniform vec2 uViewport;uniform float uVelocity;varying vec2 vUv;
 void main(){vUv=aPosition;vec2 p=uRect.xy+aPosition*uRect.zw;
 p.x+=sin(aPosition.y*3.14159265)*uVelocity*32.0;
 p.y+=sin(aPosition.x*3.14159265)*uVelocity*9.0;
@@ -24,7 +24,7 @@ export default function CategoryExperience({category,projects}:{category:string;
   useEffect(()=>{
     if(!canvas.current||!projects.length)return;
     const el=canvas.current,m=model.current;let alive=true,raf=0,lastTime=0;
-    const gl=el.getContext('webgl',{alpha:false,antialias:true,powerPreference:'low-power'});
+    const gl=(()=>{try{return el.getContext('webgl',{alpha:false,antialias:true,powerPreference:'low-power'});}catch{return null;}})();
     let program:WebGLProgram|null=null,buffer:WebGLBuffer|null=null;
     const textures:{texture:WebGLTexture|null;width:number;height:number}[]=[];
     const images:HTMLImageElement[]=[];
@@ -74,10 +74,10 @@ export default function CategoryExperience({category,projects}:{category:string;
     return()=>{alive=false;cancelAnimationFrame(raf);el.removeEventListener('wheel',wheel);el.removeEventListener('webglcontextlost',lost);window.removeEventListener('resize',resize);images.forEach(i=>{i.onload=null;});textures.forEach(t=>gl?.deleteTexture(t.texture));if(buffer)gl?.deleteBuffer(buffer);if(program)gl?.deleteProgram(program);};
   },[projects]);
   const step=(direction:number)=>{const m=model.current;m.target=(Math.round(m.target/m.pitch)+direction)*m.pitch;};
-  return <main ref={root} className="category-experience" tabIndex={0} aria-label={`${category} project explorer`} onKeyDown={e=>{
+  return <main ref={root} className="category-experience" style={{backgroundColor:selected.palette[1],color:'#000'}} tabIndex={0} aria-label={`${category} project explorer`} onKeyDown={e=>{
     if(['ArrowDown','ArrowRight','ArrowUp','ArrowLeft'].includes(e.key)){e.preventDefault();step(e.key==='ArrowDown'||e.key==='ArrowRight'?1:-1);}
   }}>
-    <canvas ref={canvas} className="category-canvas" data-renderer={gpu?'webgl':'fallback'} aria-label="Scroll or swipe through projects" onPointerDown={e=>{if(menu.current||e.button!==0)return;Object.assign(drag.current,{down:true,startY:e.clientY,lastY:e.clientY,lastTime:performance.now(),velocity:0,moved:false});e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={e=>{
+    <canvas ref={canvas} className="category-canvas" style={{opacity:gpu?1:0}} data-renderer={gpu?'webgl':'fallback'} aria-label="Scroll or swipe through projects" onPointerDown={e=>{if(menu.current||e.button!==0)return;Object.assign(drag.current,{down:true,startY:e.clientY,lastY:e.clientY,lastTime:performance.now(),velocity:0,moved:false});e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={e=>{
       const d=drag.current;if(!d.down)return;const now=performance.now(),delta=d.lastY-e.clientY;model.current.target+=delta;d.velocity=delta/Math.max(8,now-d.lastTime);d.lastY=e.clientY;d.lastTime=now;if(Math.abs(e.clientY-d.startY)>8)d.moved=true;
     }} onPointerUp={e=>{
       const d=drag.current,m=model.current;if(!d.down)return;d.down=false;if(d.moved)m.target+=d.velocity*130;
