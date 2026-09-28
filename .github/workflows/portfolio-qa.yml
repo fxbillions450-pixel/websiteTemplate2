@@ -29,6 +29,24 @@ jobs:
         run: npx playwright install --with-deps chromium webkit
       - name: Real desktop and mobile-browser interaction tests
         run: npm run test:e2e
+      - name: Compact visual verification frames
+        if: always()
+        run: |
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from PIL import Image, ImageDraw, ImageOps
+          import glob,io,base64,os
+          files=sorted(glob.glob('test-results/screens/*'))
+          for suffix in ['02-grid','04-menu','06-project-intro']:
+            chosen=[f for f in files if suffix in f]
+            if not chosen: continue
+            sheet=Image.new('RGB',(540,340),'#deded7');d=ImageDraw.Draw(sheet)
+            for i,f in enumerate(chosen[:2]):
+              image=Image.open(f).convert('RGB');image.thumbnail((355 if i==0 else 175,310))
+              x=0 if i==0 else 365;sheet.paste(image,(x,22));d.text((x+4,3),os.path.basename(f).split('-'+suffix)[0],fill='black')
+            output=io.BytesIO();sheet.save(output,format='WEBP',quality=35)
+            print('VISUAL_FRAME '+suffix+' '+base64.b64encode(output.getvalue()).decode())
+          PY
       - name: Collect deployable source
         if: always()
         run: git archive --format=zip HEAD -o website-template2-rebuilt-source.zip
