@@ -1,1 +1,10 @@
-import {notFound} from 'next/navigation'; import Link from 'next/link'; import Asset from '@/components/Asset'; import {getProject,projects} from '@/data/projects'; export function generateStaticParams(){return projects.map(p=>({slug:p.slug}))} export default async function Project({params}:{params:Promise<{slug:string}>}){const{slug}=await params,p=getProject(slug);if(!p)notFound();const idx=projects.findIndex(x=>x.slug===slug),next=projects[(idx+1)%projects.length];return <main className="project"><section className="project-intro"><div className="project-cover"><Asset src={p.cover} alt={p.title} className="fill"/></div><div className="project-meta"><div><small>{p.category} / {p.year}</small><h1>{p.title}</h1></div><p>{p.description}</p></div></section><section className="gallery">{p.gallery.map((src,i)=><figure data-reveal key={src}><Asset src={src} alt={`${p.title} ${i+1}`} className="gallery-img"/></figure>)}</section><Link className="next-up" href={`/work/${next.slug}`}><small>NEXT UP</small><strong>{next.title}</strong><span>{next.category} →</span></Link></main>}
+import {notFound} from 'next/navigation';
+import {projects} from '@/data/projects';
+import {getProjects} from '@/lib/content';
+import ProjectExperience from '@/components/ProjectExperience';
+export function generateStaticParams(){return projects.map(p=>({slug:p.slug}));}
+export async function generateMetadata({params}:{params:Promise<{slug:string}>}){const {slug}=await params;return{title:projects.find(p=>p.slug===slug)?.title||'Project'};}
+export default async function ProjectPage({params}:{params:Promise<{slug:string}>}){
+  const {slug}=await params;const all=getProjects(),i=all.findIndex(p=>p.slug===slug);if(i<0)notFound();
+  return <ProjectExperience project={all[i]} next={all[(i+1)%all.length]}/>;
+}
