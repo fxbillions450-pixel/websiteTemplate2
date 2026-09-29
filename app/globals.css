@@ -30,3 +30,21 @@ html,body{background:var(--black);color:var(--acid)}
 .project-cover{position:relative}.project-cover-caption{position:absolute;left:12px;bottom:10px;padding:5px 8px;background:var(--black);color:var(--acid);font-size:11px;letter-spacing:.04em;pointer-events:none}.gallery-frame figcaption{height:auto;min-height:15px;display:flex;justify-content:space-between;gap:18px;white-space:nowrap}.lightbox-controls>span{max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
 .project-cover .media,.gallery-frame .media{background:var(--black)}
 .project-cover .media img,.gallery-frame .media img{object-fit:contain}
+
+/* The menu is a true list of destinations, rather than one wrapping sentence. */
+.site-menu nav{top:clamp(118px,14svh,160px);bottom:clamp(72px,9svh,105px);left:var(--edge);width:min(65vw,1120px);display:grid;grid-template-rows:repeat(6,minmax(0,1fr));gap:0;font-size:clamp(42px,5.45vw,102px);line-height:.78;letter-spacing:-.045em}
+.menu-line{display:block;min-height:0;overflow:hidden;border-top:1px solid #ffffff35}
+.menu-line:last-child{border-bottom:1px solid #ffffff35}
+.menu-line a{height:100%;display:grid;grid-template-columns:clamp(34px,3.2vw,58px) minmax(0,1fr) auto;align-items:center;column-gap:clamp(10px,1.4vw,24px);transform:translateY(115%);opacity:1;transition:transform .55s var(--ease),opacity .25s ease,color .25s ease;transition-delay:0s}
+.is-open .menu-line a{transform:none;transition-delay:calc(var(--menu-index)*45ms + 80ms)}
+.menu-index{align-self:center;font:700 clamp(10px,.78vw,14px)/1 var(--body);letter-spacing:.08em;opacity:.55}
+.menu-name{display:block;white-space:nowrap}
+.menu-arrow{font-size:.45em;line-height:1;opacity:0;transform:translate(-18px,10px);transition:opacity .3s ease,transform .45s var(--ease)}
+.site-menu nav:has(a:is(:hover,:focus)) .menu-line a{opacity:.22;transition-delay:0s}
+.site-menu nav .menu-line:has(a:hover) a,.site-menu nav:not(:has(a:hover)) .menu-line:has(a:focus) a{opacity:1;transform:translateX(clamp(8px,1.3vw,24px));color:var(--acid)}
+.site-menu nav .menu-line:has(a:hover) .menu-index,.site-menu nav:not(:has(a:hover)) .menu-line:has(a:focus) .menu-index{opacity:1}
+.site-menu nav .menu-line:has(a:hover) .menu-arrow,.site-menu nav:not(:has(a:hover)) .menu-line:has(a:focus) .menu-arrow{opacity:1;transform:none}
+.menu-preview{right:var(--edge);top:clamp(245px,30svh,330px);bottom:auto;width:20vw;height:min(45svh,27vw);max-height:none}
+
+@media(max-width:767px){.site-menu nav{top:clamp(90px,12svh,112px);bottom:clamp(58px,8svh,78px);left:var(--edge);width:calc(100% - var(--edge)*2);display:grid;grid-template-rows:repeat(6,minmax(0,1fr));align-items:stretch;font-size:clamp(44px,13vw,74px);line-height:.8;text-align:left}.menu-line{width:100%}.menu-line a{grid-template-columns:30px minmax(0,1fr) 24px;column-gap:8px}.menu-index{font-size:9px}.menu-arrow{font-size:.38em}.site-menu nav .menu-line:has(a:hover) a,.site-menu nav:not(:has(a:hover)) .menu-line:has(a:focus) a{transform:translateX(6px)}}
+@media(max-height:500px) and (pointer:coarse){.site-menu nav{top:62px;bottom:35px;font-size:9svh;line-height:.72;grid-template-rows:repeat(6,minmax(0,1fr))}.menu-index{font-size:7px}.menu-footer{display:none}}
