@@ -1,8 +1,10 @@
-export const categories = ['Advertising', 'Editorial', 'Motion', 'Portrait', 'Entertainment', 'Exhibitions'] as const;
+import photoProjects from './photo-projects.json';
+
+export const categories = ['Entertainment', 'Editorial', 'Portrait', 'Exhibitions'] as const;
 export type Category = typeof categories[number];
 export type Project = {
   slug: string; title: string; category: Category; categories: Category[]; year: string;
-  description: string; cover: string; gallery: string[]; video?: string;
+  description: string; cover: string; coverName: string; gallery: string[]; galleryNames: string[]; video?: string;
   palette: [string, string]; number: string;
 };
 export const site = {
@@ -10,24 +12,22 @@ export const site = {
   subtitle: 'Photographer, Creative Director & Filmmaker',
   description: 'An independent practice in image-making, art direction and moving image.',
   email: '', instagram: '', linkedin: '',
-  hero: '/assets/hero.jpg', portrait: '/assets/portrait.jpg', logo: '/assets/brand.svg',
+  hero: '/assets/projects/5e-soirees-de-louange-sandra/01.jpg',
+  portrait: '/assets/projects/7e-soiree-de-louange-sandra/02.jpg',
+  logo: '/assets/brand.svg',
 };
-const names = ['one','two','three','four','five','six','seven','eight','nine','ten','eleven'];
-const groups: Category[] = ['Advertising','Editorial','Motion','Portrait','Editorial','Entertainment','Portrait','Advertising','Motion','Entertainment','Exhibitions'];
-const tones: [string,string][] = [
-  ['#75423c','#e3b9a6'],['#2d473e','#b8c4ad'],['#344961','#b1c2d3'],['#685645','#d9c5a8'],
-  ['#624943','#d9b8b4'],['#333745','#abb5c9'],['#5c6551','#d3d9b8'],['#7b5639','#efd0a5'],
-  ['#62494f','#e1c3cb'],['#375259','#b4d2d1'],['#3d5442','#c3cbaa'],
+const descriptions = [
+  'Photographic coverage of the 5e soirées de louange Sandra.',
+  'Photographic coverage of the 6e soirée de Louanges Sandra.',
+  'Photographic coverage of the 7e Soirée de Louange Sandra.',
+  'A photographic series from the Masterclass Festival Gospel 2026.',
 ];
-/** Replace only this configuration and the files in public/assets. Animation code is independent of content. */
-export const projects: Project[] = names.map((name,i) => {
-  const number = String(i+1).padStart(2,'0');
-  return {slug:`project-${name}`,title:`PROJECT ${name.toUpperCase()}`,category:groups[i],
-    categories: [groups[i], ...(i===10 ? ['Advertising' as Category] : [])],year:'2026',number,palette:tones[i],
-    description:'Add your project story here. Describe the idea, your role, and the people behind the work. All text and media are editable in data/projects.ts.',
-    cover:`/assets/project-${number}-cover.jpg`,
-    gallery:['a','b','c'].map(letter=>`/assets/project-${number}-${letter}.jpg`),
-  };
-});
+export const projects: Project[] = photoProjects.map((project,index) => ({
+  slug:project.slug,title:project.title,category:index===3?'Exhibitions':'Entertainment',
+  categories:index===3?['Exhibitions','Editorial','Portrait']:['Entertainment','Editorial','Portrait'],
+  year:'2026',number:String(index+1).padStart(2,'0'),palette:project.palette as [string,string],
+  description:descriptions[index],cover:project.images[0]?.src??'',coverName:project.images[0]?.name??'',
+  gallery:project.images.slice(1).map(image=>image.src),galleryNames:project.images.slice(1).map(image=>image.name),
+}));
 export const getProject = (slug: string) => projects.find(p=>p.slug===slug);
 export const categorySlug = (category: string) => category.toLowerCase();
