@@ -30,15 +30,15 @@ try{
    expect(await page.locator('.home-world').evaluate(el=>getComputedStyle(el).transform)).not.toBe(before);
    expect(new URL(page.url()).pathname).toBe('/');record.checks.push('Drag without accidental navigation');
    await page.getByRole('button',{name:'[MENU]',exact:true}).click();await page.waitForTimeout(1200);await shot('03-menu');
-   await page.locator('#site-menu nav').getByRole('link',{name:'Advertising',exact:true}).click();
-   await expect(page).toHaveURL(/\/work-categories\/advertising$/);await expect(page.locator('.route-curtain')).not.toHaveAttribute('data-active','true');await page.waitForTimeout(1000);await shot('04-category');
+   await page.locator('#site-menu nav').getByRole('link',{name:'Entertainment',exact:true}).click();
+   await expect(page).toHaveURL(/\/work-categories\/entertainment$/);await expect(page.locator('.route-curtain')).not.toHaveAttribute('data-active','true');await page.waitForTimeout(1000);await shot('04-category');
    record.checks.push('Menu and category route transition');
-   await page.locator('.category-open').click();await expect(page).toHaveURL(/\/work\/project-one$/);
+   await page.locator('.category-open').click();await expect(page).toHaveURL(/\/work\/5e-soirees-de-louange-sandra$/);
    await expect(page.locator('.route-curtain')).not.toHaveAttribute('data-active','true');await page.waitForTimeout(1400);await shot('05-project');
    await page.getByRole('button',{name:'Enlarge cover image',exact:true}).click();await expect(page.getByRole('dialog',{name:'Image viewer'})).toBeVisible();await page.keyboard.press('Escape');
    record.checks.push('Project entry and image viewer');
    await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));await page.waitForTimeout(2200);await shot('06-next-up');
-   await page.locator('.next-project-link').click();await expect(page).toHaveURL(/\/work\/project-two$/);record.checks.push('Horizontal gallery and next-project navigation');
+   await page.locator('.next-project-link').click();await expect(page).toHaveURL(/\/work\/6e-soiree-de-louanges-sandra$/);record.checks.push('Horizontal gallery and next-project navigation');
    await page.goto(base+'/info',{waitUntil:'domcontentloaded'});await page.waitForTimeout(1000);await shot('07-info');
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);expect(errors).toEqual([]);record.checks.push('Info, no horizontal overflow, no application exceptions');
   }finally{await context.close();await browser.close();}
