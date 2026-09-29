@@ -14,9 +14,9 @@ test('category fallback keeps text readable and navigation working without WebGL
  await expect(canvas).toHaveAttribute('data-renderer','fallback');
  await expect(canvas).toHaveCSS('opacity','0');
  await expect(root).toHaveCSS('background-color','rgb(0, 0, 0)');
- await expect(page.locator('.category-heading')).toHaveCSS('color','rgb(253, 237, 5)');
+ await expect(page.locator('.category-heading')).toHaveCSS('color','rgb(255, 255, 255)');
  await expect(page.locator('.category-fallback')).toBeVisible();
- await expect(page.getByRole('button',{name:'[MENU]',exact:true})).toHaveCSS('color','rgb(253, 237, 5)');
+ await expect(page.getByRole('button',{name:'[MENU]',exact:true})).toHaveCSS('color','rgb(255, 255, 255)');
  await page.getByRole('button',{name:'Next project',exact:true}).click();
  await expect(page.locator('.category-heading-title')).toHaveText('6e soirée de Louanges Sandra');
  await expect(root).toHaveCSS('background-color','rgb(0, 0, 0)');
