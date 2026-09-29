@@ -9,7 +9,7 @@ export type Project = {
   palette: [string, string]; number: string;
 };
 export const site = {
-  name: 'YOUR NAME', shortName: 'YN',
+  name: 'Andy Lorgis', shortName: 'AL',
   subtitle: 'Photographer, Creative Director & Filmmaker',
   description: 'An independent practice in image-making, art direction and moving image.',
   email: '', instagram: '', linkedin: '',
