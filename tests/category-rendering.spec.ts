@@ -13,13 +13,13 @@ test('category fallback keeps text readable and navigation working without WebGL
  const root=page.locator('.category-experience'),canvas=page.locator('.category-canvas');
  await expect(canvas).toHaveAttribute('data-renderer','fallback');
  await expect(canvas).toHaveCSS('opacity','0');
- await expect(root).toHaveCSS('background-color','rgb(214, 164, 111)');
- await expect(page.locator('.category-heading')).toHaveCSS('color','rgb(0, 0, 0)');
+ await expect(root).toHaveCSS('background-color','rgb(0, 0, 0)');
+ await expect(page.locator('.category-heading')).toHaveCSS('color','rgb(253, 237, 5)');
  await expect(page.locator('.category-fallback')).toBeVisible();
- await expect(page.getByRole('button',{name:'[MENU]',exact:true})).toHaveCSS('color','rgb(0, 0, 0)');
+ await expect(page.getByRole('button',{name:'[MENU]',exact:true})).toHaveCSS('color','rgb(253, 237, 5)');
  await page.getByRole('button',{name:'Next project',exact:true}).click();
  await expect(page.locator('.category-heading-title')).toHaveText('6e soirée de Louanges Sandra');
- await expect(root).toHaveCSS('background-color','rgb(198, 169, 189)');
+ await expect(root).toHaveCSS('background-color','rgb(0, 0, 0)');
  await page.waitForTimeout(500);
  await fs.mkdir('test-results/screens',{recursive:true});
  await page.screenshot({path:`test-results/screens/${test.info().project.name}-10-fallback.png`});
@@ -36,11 +36,12 @@ test('available WebGL must use the shader renderer rather than silently fall bac
   await expect(canvas).toHaveCSS('opacity','1');
   await expect(page.locator('.category-fallback')).toHaveCount(0);
   const pixels=await canvas.evaluate(el=>new Promise<number[]>(resolve=>requestAnimationFrame(()=>{const gl=(el as HTMLCanvasElement).getContext('webgl')!;const pixel=new Uint8Array(4);gl.readPixels(3,3,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);resolve([...pixel]);})));
-  expect(Math.max(...pixels.slice(0,3))).toBeGreaterThan(80);
+  expect(Math.max(...pixels.slice(0,3))).toBeLessThan(12);
+  expect(pixels[3]).toBe(255);
  }else{
   test.info().annotations.push({type:'environment',description:'WebGL unavailable: verified readable fallback; GPU effects are not claimed for this browser run.'});
   await expect(canvas).toHaveAttribute('data-renderer','fallback');await expect(canvas).toHaveCSS('opacity','0');
-  await expect(page.locator('.category-experience')).toHaveCSS('background-color','rgb(214, 164, 111)');
+  await expect(page.locator('.category-experience')).toHaveCSS('background-color','rgb(0, 0, 0)');
  }
  await fs.mkdir('test-results/screens',{recursive:true});await page.waitForTimeout(500);
  await page.screenshot({path:`test-results/screens/${test.info().project.name}-11-renderer.png`});

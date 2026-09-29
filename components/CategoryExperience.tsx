@@ -50,12 +50,12 @@ export default function CategoryExperience({category,projects}:{category:string;
     const uniforms={rect:uniform('uRect'),viewport:uniform('uViewport'),velocity:uniform('uVelocity'),textureSize:uniform('uTextureSize'),box:uniform('uBoxSize')};
     const resize=()=>{const ratio=m.target/m.pitch;m.width=root.current?.clientWidth||innerWidth;m.height=root.current?.clientHeight||innerHeight;m.pitch=m.height*.82;m.target=ratio*m.pitch;m.current=m.target;m.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;const dpr=Math.min(devicePixelRatio||1,2);el.width=Math.round(m.width*dpr);el.height=Math.round(m.height*dpr);gl?.viewport(0,0,el.width,el.height);};
     resize();
-    const rgb=(hex:string)=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);let color=rgb(projects[0].palette[1]);
+    const rgb=(hex:string)=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);let color=rgb('#000000');
     const render=(time:number)=>{
       if(!alive)return;const dt=Math.min(64,Math.max(1,time-(lastTime||time-16)));lastTime=time;
       const previous=m.current;m.current=m.reduced?m.target:m.current+(m.target-m.current)*(1-Math.exp(-dt/130));m.velocity=limit((m.current-previous)/dt,-2.6,2.6);
       const index=mod(Math.round(m.current/m.pitch),projects.length);if(index!==m.active){m.active=index;setActive(index);}
-      const desired=rgb(projects[index].palette[1]);color=color.map((v,i)=>v+(desired[i]-v)*.045);
+      const desired=rgb('#000000');color=color.map((v,i)=>v+(desired[i]-v)*.045);
       if(gl&&program){
         gl.clearColor(color[0],color[1],color[2],1);gl.clear(gl.COLOR_BUFFER_BIT);gl.useProgram(program);gl.uniform2f(uniforms.viewport,m.width,m.height);gl.uniform1f(uniforms.velocity,m.reduced?0:m.velocity);
         const base=Math.round(m.current/m.pitch),mobile=m.width<768;
@@ -74,7 +74,7 @@ export default function CategoryExperience({category,projects}:{category:string;
     return()=>{alive=false;cancelAnimationFrame(raf);el.removeEventListener('wheel',wheel);el.removeEventListener('webglcontextlost',lost);window.removeEventListener('resize',resize);images.forEach(i=>{i.onload=null;});textures.forEach(t=>gl?.deleteTexture(t.texture));if(buffer)gl?.deleteBuffer(buffer);if(program)gl?.deleteProgram(program);};
   },[projects]);
   const step=(direction:number)=>{const m=model.current;m.target=(Math.round(m.target/m.pitch)+direction)*m.pitch;};
-  return <main ref={root} className="category-experience" style={{backgroundColor:selected.palette[1],color:'#000'}} tabIndex={0} aria-label={`${category} project explorer`} onKeyDown={e=>{
+  return <main ref={root} className="category-experience" tabIndex={0} aria-label={`${category} project explorer`} onKeyDown={e=>{
     if(['ArrowDown','ArrowRight','ArrowUp','ArrowLeft'].includes(e.key)){e.preventDefault();step(e.key==='ArrowDown'||e.key==='ArrowRight'?1:-1);}
   }}>
     <canvas ref={canvas} className="category-canvas" style={{opacity:gpu?1:0}} data-renderer={gpu?'webgl':'fallback'} aria-label="Scroll or swipe through projects" onPointerDown={e=>{if(menu.current||e.button!==0)return;Object.assign(drag.current,{down:true,startY:e.clientY,lastY:e.clientY,lastTime:performance.now(),velocity:0,moved:false});e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={e=>{

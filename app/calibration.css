@@ -15,7 +15,7 @@
 .header-description{transform:scaleX(.8)}
 .home-tile.is-active .media{transform:scale(1.1)}
 .home-work-label span{animation-delay:.6s;animation-fill-mode:both}
-.loader{padding:0;background:var(--acid)}
+.loader{padding:0;background:var(--black);color:var(--acid)}
 .loader-cinema{position:absolute;inset:0;transform:scale(.9)}
 .loader-film{position:absolute;inset:0;clip-path:inset(0 0 0 100%)}
 .loader-readout{position:relative;z-index:2;margin:0 8vw;transform-origin:left center}

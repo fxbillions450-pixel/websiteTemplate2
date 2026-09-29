@@ -76,7 +76,7 @@ export default function HomeExperience({projects,site}:{projects:Project[];site:
  };
  const selected=projects[Math.max(0,active)];
  return <div ref={root} id="work" className={`home-experience ${loaded?'is-loaded':''} ${opened?'is-explored':''}`} data-version="motion-rebuild-2">
-  <Loader assets={[site.hero,...projects.map(p=>p.cover)]} onReady={()=>setLoaded(true)}/>
+  <Loader assets={projects.map(p=>p.cover)} onReady={()=>setLoaded(true)}/>
   <section ref={stage} className="home-stage" aria-label="Interactive portfolio" onPointerDown={e=>{
    const m=model.current;if(!m.opened||menu.current||e.button!==0)return;Object.assign(drag.current,{down:true,x:e.clientX,y:e.clientY,startX:m.targetX,startY:m.targetY,lastX:e.clientX,lastY:e.clientY,lastTime:performance.now(),vx:0,vy:0,moved:false});
   }} onPointerMove={e=>{
@@ -90,7 +90,7 @@ export default function HomeExperience({projects,site}:{projects:Project[];site:
    if(!opened)return;const m=model.current;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();m.targetX=clamp(m.targetX+(e.key==='ArrowLeft'?90:e.key==='ArrowRight'?-90:0),-m.width*.65,m.width*.65);m.targetY=clamp(m.targetY+(e.key==='ArrowUp'?90:e.key==='ArrowDown'?-90:0),-m.height*.85,m.height*.85);}if(e.key==='Escape')reset();
   }}>
    <div ref={world} className={`home-world ${active>=0&&opened?'has-hover':''}`}>
-    {projects.map((p,i)=><a key={p.slug} href={`/work/${p.slug}`} ref={el=>{cards.current[i]=el;}} className={`home-tile ${active===i?'is-active':''}`} style={{zIndex:i+1,'--caption':0} as CSSProperties} tabIndex={opened?0:-1} aria-label={`Open ${p.title}`} onFocus={()=>focusCard(i)} onMouseEnter={()=>{if(model.current.opened&&!model.current.touch)setActive(i);}} onMouseLeave={()=>setActive(-1)} onClick={e=>{e.preventDefault();if(!model.current.opened||performance.now()<drag.current.suppressUntil)return;window.dispatchEvent(new CustomEvent('portfolio:open-project',{detail:`/work/${p.slug}`}));}}><Asset src={i===projects.length-1?(site.hero||p.cover):p.cover} alt={p.title} number={p.number} palette={p.palette} priority/><span className="tile-caption">{p.title}</span></a>)}
+    {projects.map((p,i)=><a key={p.slug} href={`/work/${p.slug}`} ref={el=>{cards.current[i]=el;}} className={`home-tile ${active===i?'is-active':''}`} style={{zIndex:i+1,'--caption':0} as CSSProperties} tabIndex={opened?0:-1} aria-label={`Open ${p.title}`} onFocus={()=>focusCard(i)} onMouseEnter={()=>{if(model.current.opened&&!model.current.touch)setActive(i);}} onMouseLeave={()=>setActive(-1)} onClick={e=>{e.preventDefault();if(!model.current.opened||performance.now()<drag.current.suppressUntil)return;window.dispatchEvent(new CustomEvent('portfolio:open-project',{detail:`/work/${p.slug}`}));}}><Asset src={p.cover} alt={p.title} number={p.number} palette={p.palette} priority/><span className="tile-caption">{p.title}</span></a>)}
     <div ref={highlight} className={`home-highlight ${active>=0&&opened?'visible':''}`}/><div className="canvas-signature" aria-hidden="true">{site.name}<small>[{site.subtitle}]</small></div>
    </div>
    <div ref={intro} className="home-intro"><h1 aria-label={site.name}>{site.name.split(' ').map((word,i)=><span className="hero-word-mask" key={i}><span className="hero-word">{word}</span></span>)}</h1>

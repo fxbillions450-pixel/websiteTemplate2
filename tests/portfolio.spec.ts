@@ -12,6 +12,9 @@ async function shot(page:Page,name:string){await fs.mkdir('test-results/screens'
 test('initial fullscreen composition and reversible zoom-to-grid',async({page,isMobile})=>{
   await boot(page);const viewport=page.viewportSize()!;
   await expect(page.locator('.home-tile')).toHaveCount(4);
+  await expect(page.locator('.home-experience')).toHaveCSS('background-color','rgb(0, 0, 0)');
+  const sources=await page.locator('.home-tile img').evaluateAll(images=>images.map(image=>(image as HTMLImageElement).currentSrc||image.getAttribute('src')));
+  expect(new Set(sources).size).toBe(sources.length);
   const before=await page.locator('.home-tile').last().boundingBox();expect(before!.width).toBeGreaterThan(viewport.width*.94);
   await shot(page,'01-intro');await explore(page);
   const after=await page.locator('.home-tile').last().boundingBox();
