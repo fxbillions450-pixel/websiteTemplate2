@@ -66,7 +66,7 @@ export default function SiteShell({children,site,projects}:{children:ReactNode;s
    }
   }}>
    <nav aria-label="Main navigation">{groups.map((group,row)=><div className="menu-row" key={row}>{group.map(item=><span className="menu-line" key={item.name} onMouseEnter={()=>setPreview(menuItems.indexOf(item))}><TransitionLink href={item.href} ariaLabel={item.name}>{item.name}<span className="menu-comma" aria-hidden="true">{item.name==='Info'?'':','}</span></TransitionLink></span>)}</div>)}</nav>
-   <div className="menu-preview" key={preview}><Asset src={activeProject.cover} number={activeProject.number} palette={activeProject.palette} alt=""/></div>
+   <div className="menu-preview" key={preview}><Asset src={activeProject.cover} number={activeProject.number} palette={activeProject.palette} rotation={activeProject.coverRotation} alt=""/></div>
    <button className="menu-close-accessible" onClick={close}>Close menu</button>
    <footer className="menu-footer"><span>© {site.name}. 2026</span><span>{site.instagram&&<a href={site.instagram} rel="noopener noreferrer" target="_blank">Instagram</a>}{site.linkedin&&<a href={site.linkedin} rel="noopener noreferrer" target="_blank">LinkedIn</a>}</span></footer>
   </div>

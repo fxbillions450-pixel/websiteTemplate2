@@ -4,7 +4,8 @@ export const categories = ['Entertainment', 'Editorial', 'Portrait', 'Exhibition
 export type Category = typeof categories[number];
 export type Project = {
   slug: string; title: string; category: Category; categories: Category[]; year: string;
-  description: string; cover: string; coverName: string; gallery: string[]; galleryNames: string[]; video?: string;
+  description: string; cover: string; coverName: string; coverRotation: number;
+  gallery: string[]; galleryNames: string[]; galleryRotations: number[]; video?: string;
   palette: [string, string]; number: string;
 };
 export const site = {
@@ -27,7 +28,9 @@ export const projects: Project[] = photoProjects.map((project,index) => ({
   categories:index===3?['Exhibitions','Editorial','Portrait']:['Entertainment','Editorial','Portrait'],
   year:'2026',number:String(index+1).padStart(2,'0'),palette:project.palette as [string,string],
   description:descriptions[index],cover:project.images[0]?.src??'',coverName:project.images[0]?.name??'',
+  coverRotation:project.images[0]?.rotation??0,
   gallery:project.images.slice(1).map(image=>image.src),galleryNames:project.images.slice(1).map(image=>image.name),
+  galleryRotations:project.images.slice(1).map(image=>image.rotation??0),
 }));
 export const getProject = (slug: string) => projects.find(p=>p.slug===slug);
 export const categorySlug = (category: string) => category.toLowerCase();

@@ -42,7 +42,7 @@ export default function CategoryExperience({category,projects}:{category:string;
           const plate=document.createElement('canvas');plate.width=512;plate.height=640;const c=plate.getContext('2d')!;
           c.fillStyle=p.palette[0];c.fillRect(0,0,512,640);const grad=c.createLinearGradient(0,0,512,640);grad.addColorStop(0,p.palette[1]);grad.addColorStop(1,p.palette[0]);c.fillStyle=grad;c.beginPath();c.arc(380,260,285,0,Math.PI*2);c.fill();c.fillStyle=p.palette[1];c.font='900 250px Arial';c.fillText(p.number,20,560);c.font='500 13px Arial';c.fillText('YOUR IMAGE HERE',25,35);c.fillText('IMAGE / '+p.number,25,610);
           gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,plate);const data={texture,width:512,height:640};textures.push(data);
-          if(p.cover){const image=new Image();images.push(image);image.onload=()=>{if(!alive)return;data.width=image.naturalWidth;data.height=image.naturalHeight;gl.bindTexture(gl.TEXTURE_2D,texture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,image);};image.src=p.cover;}
+          if(p.cover){const image=new Image();images.push(image);image.onload=()=>{if(!alive)return;let source:TexImageSource=image;if(Math.abs(p.coverRotation)%180===90){const corrected=document.createElement('canvas');corrected.width=image.naturalHeight;corrected.height=image.naturalWidth;const ctx=corrected.getContext('2d')!;ctx.translate(corrected.width/2,corrected.height/2);ctx.rotate(p.coverRotation*Math.PI/180);ctx.drawImage(image,-image.naturalWidth/2,-image.naturalHeight/2);source=corrected;}data.width=source.width;data.height=source.height;gl.bindTexture(gl.TEXTURE_2D,texture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,source);};image.src=p.cover;}
         });setGpu(true);
       }
     }
@@ -84,7 +84,7 @@ export default function CategoryExperience({category,projects}:{category:string;
       else if(Math.abs(e.clientX-m.width/2)<m.width*(m.width<768?.4:.18)&&Math.abs(e.clientY-m.height/2)<m.height*.34)go(`/work/${projects[m.active].slug}`);
       if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);
     }} onPointerCancel={()=>{drag.current.down=false;}}/>
-    {!gpu&&<div className="category-fallback"><Asset src={selected.cover} number={selected.number} palette={selected.palette} alt={selected.title}/></div>}
+    {!gpu&&<div className="category-fallback"><Asset src={selected.cover} number={selected.number} palette={selected.palette} rotation={selected.coverRotation} alt={selected.title}/></div>}
     <div className="category-heading"><span className="category-heading-title" key={selected.slug}>{selected.title}</span><h1>{category}</h1></div>
     <div className="category-bottom"><div className="category-pager"><button onClick={()=>step(-1)} aria-label="Previous project">↑</button><span aria-live="polite">{String(active+1).padStart(2,'0')} / {String(projects.length).padStart(2,'0')}</span><button onClick={()=>step(1)} aria-label="Next project">↓</button></div><span className="category-instruction">SCROLL / SWIPE TO EXPLORE</span><TransitionLink href={`/work/${selected.slug}`} className="category-open">[VIEW PROJECT ↗]</TransitionLink></div>
   </main>;

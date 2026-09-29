@@ -38,7 +38,7 @@ export default function Loader({assets=[],onReady}:{assets?:string[];onReady?:()
   },[]);
   if(done)return null;
   return <div ref={root} className="loader" role="status" aria-label="Loading portfolio">
-    <div className="loader-cinema" aria-hidden="true">{projects.map((p,i)=><div className="loader-film" key={p.slug}><Asset src={assets[i]||p.cover} number={p.number} palette={p.palette} priority/></div>)}</div>
+    <div className="loader-cinema" aria-hidden="true">{projects.map((p,i)=><div className="loader-film" key={p.slug}><Asset src={assets[i]||p.cover} number={p.number} palette={p.palette} rotation={p.coverRotation} priority/></div>)}</div>
     <div className="loader-readout"><div className="loader-row"><span>LOADING</span><span aria-live="polite">{value}%</span></div><div className="loader-track"><span style={{transform:`scaleX(${value/100})`}}/></div></div>
   </div>;
 }

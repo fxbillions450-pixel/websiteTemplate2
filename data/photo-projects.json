@@ -231,7 +231,8 @@
     "images": [
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/01.jpg",
-        "name": "_MG_0449 21 Edited"
+        "name": "_MG_0449 21 Edited",
+        "rotation": 90
       },
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/02.jpg",
@@ -243,7 +244,8 @@
       },
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/04.jpg",
-        "name": "_MG_0521 43 Edited"
+        "name": "_MG_0521 43 Edited",
+        "rotation": 90
       },
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/05.jpg",
@@ -251,11 +253,13 @@
       },
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/06.jpg",
-        "name": "_MG_0651 93 Edited"
+        "name": "_MG_0651 93 Edited",
+        "rotation": 90
       },
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/07.jpg",
-        "name": "_MG_0604 77 Edited"
+        "name": "_MG_0604 77 Edited",
+        "rotation": 90
       },
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/08.jpg",
@@ -275,11 +279,13 @@
       },
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/12.jpg",
-        "name": "_MG_0496 32 Edited"
+        "name": "_MG_0496 32 Edited",
+        "rotation": 90
       },
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/13.jpg",
-        "name": "_MG_0519 42 Edited"
+        "name": "_MG_0519 42 Edited",
+        "rotation": 90
       },
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/14.jpg",
@@ -315,11 +321,13 @@
       },
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/22.jpg",
-        "name": "_MG_0661 99 Edited"
+        "name": "_MG_0661 99 Edited",
+        "rotation": 90
       },
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/23.jpg",
-        "name": "_MG_0525 46 Edited"
+        "name": "_MG_0525 46 Edited",
+        "rotation": 90
       },
       {
         "src": "/assets/projects/masterclass-festival-gospel-2026/24.jpg",
