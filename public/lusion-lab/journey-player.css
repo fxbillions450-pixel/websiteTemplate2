@@ -24,4 +24,5 @@ html{scroll-behavior:auto;scroll-padding-top:0}
 #arrival .arrival-footer p{margin-bottom:0}
 @media(max-width:767px){#arrival h1{font-size:clamp(60px,15vw,108px)}}
 @media(max-height:500px) and (orientation:landscape){#arrival h1{font-size:57px}}
-@media(prefers-reduced-motion:reduce){.journey{height:450svh}}
+/* Reduced motion stops autoplay in the controller, not by changing the scroll
+   range underneath the reader. Keep the same geometry when preferences change. */
