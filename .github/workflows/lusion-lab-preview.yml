@@ -7,7 +7,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 16
+    timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
         with:
@@ -15,16 +15,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install isolated lab tools, not the production project
+      - name: Install pinned scene and test dependencies in isolation
         run: |
           mkdir -p "$RUNNER_TEMP/lusion-lab/site"
           cp -r public/lusion-lab/* "$RUNNER_TEMP/lusion-lab/site/"
           cp scripts/lusion-lab-{build,qa}.mjs "$RUNNER_TEMP/lusion-lab/"
           cd "$RUNNER_TEMP/lusion-lab"
           npm init -y
-          npm install --save-exact three@0.180.0 esbuild@0.25.10 @playwright/test@1.63.0 pngjs@7.0.0 agent-browser
-          npx playwright install --with-deps chromium webkit
-      - name: Bundle an offline single-file version and start the preview server
+          timeout 150s npm install --save-exact --no-fund three@0.180.0 esbuild@0.25.10 @playwright/test@1.56.1 pngjs@7.0.0
+      - name: Install browser engines
+        run: cd "$RUNNER_TEMP/lusion-lab" && npx playwright install --with-deps chromium webkit
+      - name: Bundle offline page and start preview server
         run: |
           cd "$RUNNER_TEMP/lusion-lab"
           node lusion-lab-build.mjs
@@ -35,10 +36,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/lusion-lab"
           export AGENT_BROWSER_EXECUTABLE_PATH="$(node -p "require('@playwright/test').chromium.executablePath()")"
-          timeout 45s npx agent-browser --session lusion-lab open http://127.0.0.1:4173/
-          timeout 20s npx agent-browser --session lusion-lab snapshot -i > agent-browser-snapshot.txt
-          timeout 20s npx agent-browser --session lusion-lab screenshot agent-browser-preview.png
-          npx agent-browser --session lusion-lab close
+          timeout 45s npx --yes agent-browser --session lusion-lab open http://127.0.0.1:4173/
+          timeout 15s npx --yes agent-browser --session lusion-lab snapshot -i > agent-browser-snapshot.txt
+          timeout 15s npx --yes agent-browser --session lusion-lab screenshot agent-browser-preview.png
+          timeout 10s npx --yes agent-browser --session lusion-lab close
       - name: Desktop, touch and WebKit interaction checks
         run: cd "$RUNNER_TEMP/lusion-lab" && node lusion-lab-qa.mjs
       - name: Package standalone HTML and original source
