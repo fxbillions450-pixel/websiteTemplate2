@@ -6,10 +6,18 @@ permissions:
   contents: read
 jobs:
   verify:
+    name: verify-${{ matrix.engine }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [desktop, mobile, webkit]
     container:
       image: mcr.microsoft.com/playwright:v1.56.1-noble
-    timeout-minutes: 14
+      options: --ipc=host
+    timeout-minutes: 10
+    env:
+      LAB_ENGINE: ${{ matrix.engine }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -17,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install pinned scene and test dependencies in isolation
+      - name: Install pinned dependencies in isolation
         run: |
           mkdir -p "$RUNNER_TEMP/lusion-lab/site"
           cp -r public/lusion-lab/* "$RUNNER_TEMP/lusion-lab/site/"
@@ -32,6 +40,7 @@ jobs:
           python3 -m http.server 4173 --bind 127.0.0.1 --directory site > server.log 2>&1 &
           sleep 2
       - name: Inspect browser output with agent-browser
+        if: matrix.engine == 'desktop'
         continue-on-error: true
         run: |
           cd "$RUNNER_TEMP/lusion-lab"
@@ -40,28 +49,30 @@ jobs:
           timeout 15s npx --yes agent-browser --session lusion-lab snapshot -i > agent-browser-snapshot.txt
           timeout 15s npx --yes agent-browser --session lusion-lab screenshot agent-browser-preview.png
           timeout 10s npx --yes agent-browser --session lusion-lab close
-      - name: Desktop, touch and WebKit interaction checks
-        run: cd "$RUNNER_TEMP/lusion-lab" && node lusion-lab-qa.mjs
-      - name: Package standalone HTML and original source
+      - name: Full hands-free journey and interaction regression tests
+        run: cd "$RUNNER_TEMP/lusion-lab" && timeout 360s node lusion-lab-qa.mjs
+      - name: Collect exact source and browser evidence
         if: always()
         run: |
           cd "$RUNNER_TEMP/lusion-lab"
           python3 - <<'PY'
-          import zipfile, pathlib
-          with zipfile.ZipFile('lusion-motion-lab.zip','w',zipfile.ZIP_DEFLATED) as z:
+          import zipfile,pathlib,os,shutil
+          dest=pathlib.Path(os.environ['GITHUB_WORKSPACE'])/'lusion-preview-evidence'
+          dest.mkdir(exist_ok=True)
+          with zipfile.ZipFile(dest/'lusion-motion-lab.zip','w',zipfile.ZIP_DEFLATED) as z:
             for name in ['site','lusion-lab-build.mjs','lusion-lab-qa.mjs','package.json','package-lock.json','THREE-LICENSE.txt']:
               p=pathlib.Path(name)
               for f in ([p] if p.is_file() else p.rglob('*')):
                 if f.is_file():z.write(f,str(f))
+          for name in ['evidence','agent-browser-snapshot.txt','agent-browser-preview.png','server.log']:
+            p=pathlib.Path(name)
+            if p.is_dir():shutil.copytree(p,dest/p.name,dirs_exist_ok=True)
+            elif p.is_file():shutil.copy2(p,dest/p.name)
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: lusion-motion-lab-preview
-          path: |
-            ${{ runner.temp }}/lusion-lab/lusion-motion-lab.zip
-            ${{ runner.temp }}/lusion-lab/site/standalone.html
-            ${{ runner.temp }}/lusion-lab/evidence/
-            ${{ runner.temp }}/lusion-lab/agent-browser-snapshot.txt
-            ${{ runner.temp }}/lusion-lab/agent-browser-preview.png
+          name: lusion-motion-lab-${{ matrix.engine }}
+          path: lusion-preview-evidence/
+          if-no-files-found: error
           retention-days: 14
