@@ -7,6 +7,8 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
     timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
@@ -19,12 +21,10 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/lusion-lab/site"
           cp -r public/lusion-lab/* "$RUNNER_TEMP/lusion-lab/site/"
-          cp scripts/lusion-lab-{build,qa}.mjs "$RUNNER_TEMP/lusion-lab/"
+          cp scripts/lusion-lab-build.mjs scripts/lusion-lab-qa.mjs "$RUNNER_TEMP/lusion-lab/"
           cd "$RUNNER_TEMP/lusion-lab"
           npm init -y
           timeout 150s npm install --save-exact --no-fund three@0.180.0 esbuild@0.25.10 @playwright/test@1.56.1 pngjs@7.0.0
-      - name: Install browser engines
-        run: cd "$RUNNER_TEMP/lusion-lab" && npx playwright install --with-deps chromium webkit
       - name: Bundle offline page and start preview server
         run: |
           cd "$RUNNER_TEMP/lusion-lab"
@@ -46,7 +46,14 @@ jobs:
         if: always()
         run: |
           cd "$RUNNER_TEMP/lusion-lab"
-          zip -qr lusion-motion-lab.zip site lusion-lab-build.mjs lusion-lab-qa.mjs package.json package-lock.json THREE-LICENSE.txt
+          python3 - <<'PY'
+          import zipfile, pathlib
+          with zipfile.ZipFile('lusion-motion-lab.zip','w',zipfile.ZIP_DEFLATED) as z:
+            for name in ['site','lusion-lab-build.mjs','lusion-lab-qa.mjs','package.json','package-lock.json','THREE-LICENSE.txt']:
+              p=pathlib.Path(name)
+              for f in ([p] if p.is_file() else p.rglob('*')):
+                if f.is_file():z.write(f,str(f))
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
