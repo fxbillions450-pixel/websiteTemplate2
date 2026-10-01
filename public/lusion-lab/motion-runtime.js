@@ -77,7 +77,7 @@ export function createTunnelTiles(T, scene, material, lightMaterial) {
           vec3 transformed=position*vec3(.05,.09,1.6)
             +vec3(aTile.y<.5?-uRadius*.985:uRadius*.985,-uRadius*.72,5.-mod(aTile.x*3.6+uTravel,108.));`);
       } else {
-        shader.vertexShader = common + shader.vertexShader;
+        shader.vertexShader = common + '\n' + shader.vertexShader;
         shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>', `
           vec3 tileCenter,tileScale;mat3 tileBasis;
           tileFrame(tileCenter,tileScale,tileBasis);
