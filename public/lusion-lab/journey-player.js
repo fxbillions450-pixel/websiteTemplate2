@@ -1,113 +1,162 @@
-/* Native scroll has one writer during autoplay. The existing renderer reads
- * that same coordinate. Destination navigation never animates camera meshes.
+/* One continuous, reversible native-scroll timeline. No snapping, scroll locks,
+ * route changes, synthetic wheel events, or per-frame playback-rate clamping.
+ * The graphics loop calls step() before rendering. A fallback loop keeps the
+ * ending accessible even when the optional graphics module fails to load.
  */
 (() => {
   'use strict';
-  const $=s=>document.querySelector(s), journey=$('#journey'), sticky=$('.journey-sticky');
-  const content=$('#content'), arrival=$('#arrival'), header=$('.header'), veil=$('#journey-veil');
-  const toggle=$('#journey-toggle'), motionPause=$('#pause'), slowButton=$('#slow');
-  const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)), duration=28;
-  const data={version:'journey-autoplay-004',mode:'idle',progress:0,starts:0,arrivals:0,duration};
-  window.__journeyPlayer=data;
-  let top=0,length=1,height=1,raf=0,last=0,cursor=scrollY,written=scrollY;
-  let mode='idle',armed=true,touching=false,manualUntil=0,startY=0,entryTime=0;
-  let transitionToken=0,animation=null,restoreY=0,resizing=false,uiKey='',manualSync=false;
-  const baseURL=()=>location.pathname+location.search;
-  const isPaused=()=>document.body.classList.contains('motion-paused');
-  const modalOpen=()=>Boolean($('#menu')?.open||$('#detail')?.open);
-  const ready=()=>$('#tunnel-stage').dataset.ready==='true';
-  const failed=()=>$('#tunnel-stage').classList.contains('error')||/could not start|needs WebGL/.test($('#tunnel-stage .stage-loading').textContent);
-  const nowReduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
-  history.scrollRestoration='manual';
-  function measure(){if(mode==='arrival')return;top=journey.getBoundingClientRect().top+scrollY;height=sticky.offsetHeight;length=Math.max(1,journey.offsetHeight-height);}
-  function write(y){cursor=y;window.scrollTo({top:y,behavior:'instant'});written=scrollY;}
-  function setMode(value){mode=value;data.mode=value;document.body.dataset.journeyMode=value;document.body.classList.toggle('journey-playing',['entering','playing','waiting'].includes(value));}
-  function syncControl(){
-    const paused=isPaused()||mode==='waiting',broken=failed();
-    data.mode=isPaused()&&['playing','entering'].includes(mode)?'paused':mode;
-    const key=data.mode+':'+paused+':'+broken;
-    if(key===uiKey)return;uiKey=key;
-    toggle.textContent=paused?'Play journey':'Pause';
-    toggle.setAttribute('aria-pressed',String(!paused&&['playing','entering'].includes(mode)));
-    toggle.setAttribute('aria-label',paused?'Play journey automatically':'Pause journey');
-    $('#journey-skip').hidden=!broken;document.body.dataset.journeyMode=data.mode;
-  }
-  function pauseMotion(value){if(isPaused()!==value&&window.__motionLab)motionPause.click();}
-  function start(fromCurrent=false){
-    if(!ready()||failed()||modalOpen()||['arrival','transitioning'].includes(mode))return;
-    measure();armed=true;data.starts++;manualUntil=0;manualSync=false;
-    if(fromCurrent||scrollY>=top){setMode('playing');cursor=scrollY;written=scrollY;}else{startY=scrollY;entryTime=0;setMode('entering');}
-    $('#status').textContent='Journey playing automatically. You can pause, scroll, or leave at any time.';
-  }
-  function cancelTransition(){transitionToken++;if(animation){animation.cancel();animation=null;}veil.style.opacity='0';veil.hidden=true;document.body.style.overflow='';}
-  function showArrival(){
-    setMode('arrival');data.progress=1;data.arrivals++;pauseMotion(true);
-    content.classList.add('view-dormant');content.inert=true;
-    header.hidden=true;header.inert=true;arrival.hidden=false;
-    document.body.classList.add('arrival-page');document.title='The other side — Motion Lab';write(0);$('#arrival-title').focus({preventScroll:true});
-  }
-  async function finish(){
-    if(['arrival','transitioning'].includes(mode))return;
-    measure();restoreY=top+length*.9;write(top+length);setMode('transitioning');pauseMotion(true);content.inert=true;document.body.style.overflow='hidden';
-    const token=++transitionToken;veil.hidden=false;veil.style.opacity='0';
-    try{
-      animation=veil.animate([{opacity:0},{opacity:1}],{duration:nowReduced()?1:760,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'});await animation.finished;
-      if(token!==transitionToken)return;
-      history.replaceState({...history.state,motionLabReturnY:restoreY},'',baseURL()+'#journey');
-      history.pushState({motionLabArrival:true,motionLabReturnY:restoreY},'',baseURL()+'#arrival');showArrival();
-      animation.cancel();veil.style.opacity='1';animation=veil.animate([{opacity:1},{opacity:0}],{duration:nowReduced()?1:1000,easing:'cubic-bezier(.16,1,.3,1)',fill:'forwards'});await animation.finished;
-      if(token!==transitionToken)return;
-      animation.cancel();animation=null;veil.hidden=true;veil.style.opacity='0';document.body.style.overflow='';
-    }catch(e){if(e.name!=='AbortError'){console.error(e);cancelTransition();}}
-  }
-  function restoreView({home=false,replay=false,y=null}={}){
-    cancelTransition();arrival.hidden=true;content.classList.remove('view-dormant');content.style.top='';content.inert=false;header.hidden=false;header.inert=false;
-    document.body.classList.remove('arrival-page');document.title='Motion Lab — interactive Lusion-style study';setMode(replay?'playing':home?'idle':'waiting');
-    window.__startMotionLab?.().then(()=>pauseMotion(!replay&&!home));
-    measure();armed=false;write(home?0:replay?top:(y??restoreY));data.progress=clamp((scrollY-top)/length);pauseMotion(!replay&&!home);
-    if(replay){data.starts++;armed=true;}last=0;manualUntil=0;(home?$('.brand'):toggle).focus({preventScroll:true});syncControl();
-    requestAnimationFrame(()=>dispatchEvent(new Event('resize')));
-  }
-  function leave(){if(mode==='transitioning')cancelTransition();measure();setMode('idle');armed=false;write(Math.max(0,top-height*.92));data.progress=0;armed=true;if(location.hash==='#journey')history.replaceState({...history.state},'',baseURL()+'#depth');$('#depth-stage').focus({preventScroll:true});}
-  toggle.addEventListener('click',()=>{if(['waiting','idle'].includes(mode)){pauseMotion(false);start(true);}else pauseMotion(!isPaused());syncControl();});
-  motionPause.addEventListener('click',()=>{cursor=scrollY;written=scrollY;last=0;manualSync=false;});
-  $('#menu').querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{setMode('idle');armed=a.hash==='#journey';manualSync=true;last=0;}));
-  $('#journey-leave').addEventListener('click',leave);$('#journey-skip').addEventListener('click',finish);
-  $('#arrival-replay').addEventListener('click',()=>{history.replaceState({motionLabReturnY:restoreY},'',baseURL()+'#journey');restoreView({replay:true});});
-  $('#arrival-home').addEventListener('click',()=>{history.replaceState({},'',baseURL()+'#interaction');restoreView({home:true});});
-  addEventListener('popstate',()=>{if(history.state?.motionLabArrival||location.hash==='#arrival'){cancelTransition();showArrival();}else if(['arrival','transitioning'].includes(mode))restoreView({y:history.state?.motionLabReturnY??restoreY});});
-  addEventListener('hashchange',()=>{if(location.hash==='#arrival'&&mode!=='arrival'){cancelTransition();showArrival();}else if(mode==='arrival'&&location.hash!=='#arrival')restoreView({home:location.hash==='#interaction'});});
-  addEventListener('wheel',e=>{if(mode==='transitioning'){e.preventDefault();return;}if(['playing','entering'].includes(mode)){manualSync=true;manualUntil=performance.now()+(e.deltaY<0?1150:450);if(mode==='entering')setMode('playing');}},{passive:false});
-  addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!e.target.closest('button,a,input')&&mode!=='arrival'){touching=true;manualSync=true;}},{passive:true});
-  const release=()=>{if(touching)manualUntil=performance.now()+500;touching=false;};addEventListener('pointerup',release,{passive:true});addEventListener('pointercancel',release,{passive:true});
-  addEventListener('keydown',e=>{if(e.key==='Escape'&&['playing','entering','waiting'].includes(mode)&&!modalOpen()){leave();return;}if(['PageUp','ArrowUp','PageDown','ArrowDown','Home','End',' '].includes(e.key)&&!e.target.closest('button,input')){manualSync=true;manualUntil=performance.now()+(['PageUp','ArrowUp'].includes(e.key)?1150:500);}});
-  addEventListener('resize',()=>{const p=data.progress,active=['playing','waiting'].includes(mode);resizing=true;requestAnimationFrame(()=>{measure();if(active)write(top+p*length);resizing=false;last=0;});});
-  document.addEventListener('visibilitychange',()=>{last=0;});
-  matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',e=>{if(e.matches)pauseMotion(true);});
-  $('#menu').addEventListener('close',()=>{last=0;manualUntil=performance.now()+150;});
-  const resizeObserver=new ResizeObserver(()=>{if(mode!=='arrival')measure();});resizeObserver.observe(journey);
-  function tick(time){
-    // Playback follows elapsed visible time; only deliberate input resynchronizes
-    // its cursor. Native rounding or scroll anchoring cannot stall completion.
-    const dt=last?Math.max(0,(time-last)/1000):0;last=time;
-    if(!['arrival','transitioning'].includes(mode)){
-      measure();data.progress=clamp((scrollY-top)/length);
-      const inEntry=top-scrollY<=height*.35&&top+journey.offsetHeight-scrollY>=height*.98;
-      if(top-scrollY>height*.65){armed=true;if(mode!=='idle')setMode('idle');}
-      const suspended=document.hidden||modalOpen()||resizing||isPaused();
-      if(ready()&&!failed()&&!suspended){
-        if(mode==='idle'&&armed&&inEntry)start();
-        if(mode==='entering'&&!touching&&time>=manualUntil){entryTime+=dt;const p=clamp(entryTime/.65),e=1-(1-p)**3;write(startY+(top-startY)*e);if(p===1){setMode('playing');write(top);}}
-        else if(mode==='playing'){
-          if(scrollY<top-height*.35){setMode('idle');armed=false;}
-          else if(!touching&&time>=manualUntil){if(manualSync){cursor=scrollY;manualSync=false;}const rate=slowButton.getAttribute('aria-pressed')==='true'?.16:1;write(Math.min(top+length,Math.max(top,cursor)+length*dt/duration*rate));data.progress=clamp((scrollY-top)/length);if(cursor>=top+length-.5)finish();}
-        }
-      }
+  const $ = selector => document.querySelector(selector);
+  const journey = $('#journey'), sticky = $('.journey-sticky'), arrival = $('#arrival');
+  if (!journey || !sticky || !arrival) return;
+  const clamp = (n, min = 0, max = 1) => Math.min(max, Math.max(min, n));
+  const smooth = n => { n = clamp(n); return n * n * (3 - 2 * n); };
+  const preference = matchMedia('(prefers-reduced-motion: reduce)');
+  const data = { version: 'journey-fluid-001', duration: 18, playbackRate: 1,
+    mode: 'before', progress: 0, renderProgress: 0, starts: 0, auto: false,
+    reverse: false, fullyVisible: false, elapsed: 0 };
+  window.__journeyPlayer = data;
+  let top = 0, span = 1, height = 1, cursor = scrollY, lastWritten = scrollY;
+  let lastTime = null, inputUntil = 0, reverse = false, armed = true;
+  let touching = false, fingerY = 0, pointerActive = false, layoutDirty = true;
+  let attached = false, fallbackFrame = null, previousY = scrollY, previousFull = false;
+  let wasSuspended = true, lastUI = '', resizing = false;
+  const hasDialog = () => Boolean($('#menu')?.open || $('#detail')?.open);
+  const isPaused = () => document.body.classList.contains('motion-paused');
+  const ready = () => $('#tunnel-stage').dataset.ready === 'true';
+  const failed = () => $('#tunnel-stage').classList.contains('error');
+  const write = y => {
+    cursor = y;
+    window.scrollTo({ top: y, behavior: 'instant' });
+    lastWritten = scrollY;
+  };
+  function measure(preserve = false) {
+    const p = data.progress, oldTop = top, oldSpan = span;
+    top = journey.getBoundingClientRect().top + scrollY;
+    height = sticky.clientHeight;
+    span = Math.max(1, journey.offsetHeight - height);
+    if (preserve && oldSpan > 1 && p > 0 && previousY >= oldTop - 1) {
+      write(top + p * span);
+      previousY = scrollY;
     }
-    if(mode==='arrival'&&window.__motionLab)pauseMotion(true);
-    data.telemetry={top,length,cursor,nativeY:scrollY,touching,manualSync,manualUntil,now:time,hidden:document.hidden,modal:modalOpen(),paused:isPaused(),resizing};
-    syncControl();raf=requestAnimationFrame(tick);
+    layoutDirty = false;
   }
-  if(location.hash==='#arrival')showArrival();else measure();raf=requestAnimationFrame(tick);
-  addEventListener('pagehide',()=>{cancelAnimationFrame(raf);resizeObserver.disconnect();cancelTransition();});
+  function intent(direction) {
+    if (hasDialog()) return;
+    const relevant = scrollY >= top - height && scrollY <= top + span + height;
+    if (!relevant || !direction) return;
+    reverse = direction < 0;
+    data.reverse = reverse;
+    data.auto = false;
+    armed = direction > 0;
+    cursor = scrollY;
+    inputUntil = performance.now() + 220;
+  }
+  addEventListener('wheel', e => {
+    if (!e.ctrlKey && Math.abs(e.deltaY) > .1) intent(Math.sign(e.deltaY));
+  }, { passive: true });
+  // Touch events outlive pointercancel when the browser takes over native pan.
+  addEventListener('touchstart', e => {
+    if (hasDialog() || e.touches.length !== 1) return;
+    touching = true; fingerY = e.touches[0].clientY;
+    data.auto = false; cursor = scrollY;
+  }, { passive: true });
+  addEventListener('touchmove', e => {
+    if (!touching || e.touches.length !== 1) return;
+    const y = e.touches[0].clientY, delta = fingerY - y;
+    if (Math.abs(delta) > 1) intent(Math.sign(delta));
+    fingerY = y;
+  }, { passive: true });
+  const endTouch = () => { touching = false; inputUntil = performance.now() + 320; cursor = scrollY; };
+  addEventListener('touchend', endTouch, { passive: true });
+  addEventListener('touchcancel', endTouch, { passive: true });
+  addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'touch' && e.clientX >= document.documentElement.clientWidth - 2) {
+      pointerActive = true; data.auto = false;
+    }
+  }, { passive: true });
+  addEventListener('pointerup', () => { pointerActive = false; }, { passive: true });
+  addEventListener('keydown', e => {
+    if (hasDialog() || e.target.closest('input,textarea,button,a,[contenteditable=true]')) return;
+    if (['ArrowUp', 'PageUp', 'Home'].includes(e.key)) intent(-1);
+    if (['ArrowDown', 'PageDown', 'End'].includes(e.key)) intent(1);
+    // No visible transport controls. Native upward scrolling is always available.
+    if (data.fullyVisible && (e.code === 'Space' || e.key === 'Escape')) {
+      e.preventDefault();
+      if (e.key !== 'Escape' || !isPaused()) $('#pause')?.click();
+    }
+  });
+  $('#pause')?.addEventListener('click', () => { lastTime = null; cursor = scrollY; });
+  $('#menu')?.addEventListener('close', () => { lastTime = null; cursor = scrollY; inputUntil = performance.now() + 250; });
+  $('#menu')?.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    data.auto = false; reverse = false; armed = true; lastTime = null;
+  }));
+  function updateUI(p) {
+    const ending = smooth((p - .91) / .09);
+    arrival.style.opacity = String(ending);
+    arrival.style.visibility = ending > 0 ? 'visible' : 'hidden';
+    arrival.style.setProperty('--arrival-reveal', String(ending));
+    const key = String(p > .97);
+    if (key !== lastUI) { lastUI = key; arrival.setAttribute('aria-hidden', String(p <= .97)); }
+    // Fade over scroll distance, not a CSS mode change that repositions the stage.
+    const headerFade = 1 - smooth((scrollY - top + height * .18) / (height * .18));
+    document.documentElement.style.setProperty('--journey-header-opacity', String(headerFade));
+    document.body.classList.toggle('journey-full', data.fullyVisible);
+  }
+  function step(time) {
+    if (layoutDirty) measure();
+    let y = scrollY;
+    const r = sticky.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    // Zero pre-entry movement: both edges must cover the viewport naturally.
+    const full = r.top <= 1 && r.top >= -1 && r.bottom >= viewportHeight - 1 && y >= top - 1;
+    data.fullyVisible = full;
+    let dt = lastTime === null ? 0 : Math.max(0, (time - lastTime) / 1000);
+    lastTime = time;
+    const blocked = document.hidden || hasDialog() || isPaused() || preference.matches || resizing || !ready() || failed();
+    // Native scroll from touch momentum, a scrollbar, or assistive technology
+    // takes priority. Never pull the reader back to a stored automatic cursor.
+    const external = Math.abs(y - lastWritten) > 2;
+    if (external) {
+      const dy = y - previousY;
+      if (dy < -2) { reverse = true; armed = false; }
+      data.auto = false; cursor = y; lastWritten = y;
+      inputUntil = Math.max(inputUntil, time + 90);
+    }
+    if (y < top - 2) { data.auto = false; armed = true; cursor = y; }
+    if (blocked) { data.auto = false; cursor = y; dt = 0; }
+    if (wasSuspended || !previousFull) dt = 0;
+    wasSuspended = blocked;
+    if (!blocked && full && !touching && !pointerActive && time >= inputUntil && !reverse && armed && y < top + span - .5) {
+      if (!data.auto) { data.auto = true; data.starts++; cursor = y; dt = 0; }
+      const next = Math.min(top + span, cursor + span * dt / data.duration);
+      if (next > cursor) write(next);
+      data.elapsed += dt;
+      y = scrollY;
+      if (cursor >= top + span - .5) { data.auto = false; armed = false; }
+    }
+    let p = clamp((y - top) / span);
+    if (y >= top + span - 1) p = 1;
+    data.progress = data.renderProgress = p;
+    data.reverse = reverse;
+    data.mode = p >= 1 ? 'ended' : y < top - 1 ? 'before' : blocked && isPaused() ? 'paused' : data.auto ? 'playing' : reverse ? 'reverse' : 'manual';
+    data.telemetry = { top, span, height, y, cursor, dt, blocked, touching, inputUntil, time, reverse };
+    updateUI(p);
+    previousY = y; previousFull = full;
+  }
+  data.step = step;
+  data.connectRenderer = () => { attached = true; cancelAnimationFrame(fallbackFrame); lastTime = null; };
+  function fallback(time) { step(time); if (!attached) fallbackFrame = requestAnimationFrame(fallback); }
+  function resize() {
+    if (resizing) return;
+    resizing = true;
+    requestAnimationFrame(() => { measure(true); lastTime = null; resizing = false; });
+  }
+  addEventListener('resize', resize, { passive: true });
+  const observer = new ResizeObserver(() => { layoutDirty = true; });
+  observer.observe(journey); observer.observe(sticky);
+  document.addEventListener('visibilitychange', () => { lastTime = null; wasSuspended = true; });
+  preference.addEventListener('change', () => { data.auto = false; lastTime = null; });
+  addEventListener('popstate', () => { data.auto = false; reverse = true; armed = false; lastTime = null; layoutDirty = true; });
+  addEventListener('pagehide', () => { cancelAnimationFrame(fallbackFrame); observer.disconnect(); });
+  measure(); updateUI(0); fallbackFrame = requestAnimationFrame(fallback);
 })();

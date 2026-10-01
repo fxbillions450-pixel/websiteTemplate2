@@ -1,15 +1,12 @@
+/* Continuous native sticky positioning: never switch to fixed. */
 [hidden]{display:none!important}
-.journey-controls .scrub-label,.journey-controls output{display:none!important}
-.journey-controls{background:none;border:0;backdrop-filter:none;padding:0;justify-content:space-between;gap:12px}
-.journey-controls button{border:1px solid #ffffff35;background:#121520a6;backdrop-filter:blur(12px);font-size:11px;padding:12px 18px}
-.journey-actions{display:flex;gap:8px;align-items:center}.journey-top{display:none}.journey-playing .edition{opacity:0}.journey-title p{color:#615e70}.journey-playing .header{mix-blend-mode:normal;color:var(--ink)}.journey-playing .brand{visibility:hidden}
-/* Preserve measurable child sizes without a huge offscreen compositor layer. */
-.view-dormant{position:fixed!important;top:0!important;left:0;right:0;height:0!important;overflow:clip!important;contain:paint;visibility:hidden!important;pointer-events:none!important}
-/* During playback the scene belongs to the viewport, not a nested scroll box. */
-html:has(body.journey-playing){scroll-behavior:auto;scroll-padding-top:0;overflow-anchor:none}
-.journey-playing .journey-sticky{position:fixed;inset:0;z-index:20;width:100%;height:100vh;height:100dvh}
-#journey-veil{position:fixed;inset:0;z-index:100;background:#eeeff3;pointer-events:auto;opacity:0}
-.arrival-page{background:#080b13;color:#f3f3f0}
+html{scroll-behavior:auto;scroll-padding-top:0}
+.journey{height:700svh;overflow-anchor:none;scroll-margin-top:0}
+.journey-sticky{position:sticky;top:0;height:100vh;height:100dvh;overflow:hidden;isolation:isolate}
+.journey-top,.journey-controls{display:none!important}
+.header{opacity:var(--journey-header-opacity,1)}
+.journey-full .header{visibility:hidden;pointer-events:none}
+.sr-only{position:fixed;top:0;left:0}
 .arrival{position:relative;isolation:isolate;min-height:100svh;min-height:100dvh;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;background:radial-gradient(ellipse at 72% 44%,#222950 0%,#0e1222 38%,#080b13 75%);color:#eeeee9;padding:35px 5% 28px}
 .arrival:before{content:'';position:absolute;inset:0;z-index:-1;background-image:radial-gradient(circle at 17% 24%,#b9bcd9 0 1px,transparent 1.5px),radial-gradient(circle at 78% 12%,#aaaeca 0 1px,transparent 1.5px),radial-gradient(circle at 40% 73%,#aaaeca 0 1px,transparent 1.5px);background-size:257px 241px,311px 227px,379px 283px;opacity:.28}
 .arrival-header{display:flex;align-items:center;justify-content:space-between;gap:25px;font-size:10px;letter-spacing:.12em}.arrival-header .arrival-logo{font-size:20px;letter-spacing:-.05em}.arrival-logo span{font-weight:400;opacity:.6}.arrival-header .arrival-coordinates{opacity:.5}
@@ -17,13 +14,14 @@ html:has(body.journey-playing){scroll-behavior:auto;scroll-padding-top:0;overflo
 .arrival h1{position:relative;z-index:2;font-size:clamp(65px,9.5vw,164px);line-height:.9;letter-spacing:-.065em;max-width:1000px;outline:none}.arrival h1 span{color:#a1aad5}.arrival-copy{margin-top:32px;font-size:15px;line-height:1.7;max-width:300px;color:#a8adc0;position:relative;z-index:2}
 .arrival-orbit{position:absolute;z-index:-1;width:min(65vw,800px);height:min(65vw,800px);right:-7%;top:50%;transform:translateY(-50%);border:1px solid #a6b6f340;border-radius:50%;box-shadow:0 0 80px #6688cc12,inset 0 0 100px #788cf222}
 .arrival-orbit:before,.arrival-orbit:after{content:'';position:absolute;inset:12%;border:1px solid #a5b6fa55;border-radius:50%;transform:rotate(-30deg) scaleX(.45);box-shadow:0 0 40px #95b6ff10}.arrival-orbit:after{inset:25%;transform:rotate(35deg) scaleX(.65);background:radial-gradient(circle at 35% 28%,#69789e,#28304c 50%,#0c1120 78%);border-color:#7686b060;box-shadow:0 0 100px #647dcc22}
-.arrival-footer{display:flex;align-items:end;justify-content:space-between;gap:30px;padding-top:25px;border-top:1px solid #f7f7fc22;position:relative;z-index:2}.arrival-footer p{font-size:10px;line-height:1.7;letter-spacing:.06em;color:#737c98}.arrival-buttons{display:flex;gap:12px}.arrival-buttons button{background:#edf0fa;color:#14192d;padding:17px 25px;border-radius:40px;font-size:12px;display:flex;align-items:center;gap:35px}.arrival-buttons .arrival-secondary{background:transparent;color:#c7cddd;border:1px solid #8994b644}
-.arrival:not([hidden]) .arrival-composition{animation:arrival-reveal 1.2s cubic-bezier(.16,1,.3,1) both}@keyframes arrival-reveal{from{opacity:0;transform:translateY(35px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:767px){.journey-controls button{font-size:10px;padding:12px}.journey-actions{gap:6px}.arrival{padding:max(25px,env(safe-area-inset-top)) 6% max(22px,env(safe-area-inset-bottom))}.arrival-header{font-size:8px}.arrival-header .arrival-coordinates{max-width:130px;text-align:right;line-height:1.6}.arrival h1{font-size:clamp(60px,15vw,108px);line-height:.97}.arrival-kicker{font-size:9px;margin-bottom:25px}.arrival-copy{font-size:13px;max-width:220px;margin-top:26px}.arrival-composition{padding:45px 0}.arrival-orbit{width:120vw;height:120vw;right:-75%;top:37%}.arrival-footer{display:block;padding-top:20px}.arrival-footer p{font-size:8px;margin-bottom:19px}.arrival-buttons{gap:8px}.arrival-buttons button{font-size:11px;padding:15px 17px;gap:17px}}
-@media(max-height:500px) and (orientation:landscape){.arrival{padding:20px 5%}.arrival-composition{padding:20px 0}.arrival-kicker{margin-bottom:15px}.arrival h1{font-size:57px}.arrival-copy{position:absolute;left:58%;bottom:25%;font-size:12px}.arrival-footer{padding-top:14px}.arrival-buttons button{padding:12px 20px}.arrival-orbit{height:90vh;width:90vh;right:1%}}
-@media(prefers-reduced-motion:reduce){.arrival:not([hidden]) .arrival-composition{animation:none}}
-.journey-sticky{height:100vh;height:100dvh}
-html:has(body.arrival-page){overflow:hidden;scroll-behavior:auto}
-body.arrival-page{height:100vh;height:100dvh;overflow:hidden}
-.arrival{height:100vh;height:100dvh;min-height:0;overflow-y:auto}
-.arrival-page .sr-only{position:fixed;top:0;left:0}
+.arrival-footer{display:flex;align-items:end;justify-content:space-between;gap:30px;padding-top:25px;border-top:1px solid #f7f7fc22;position:relative;z-index:2}.arrival-footer p{font-size:10px;line-height:1.7;letter-spacing:.06em;color:#737c98}
+@media(max-width:767px){.arrival{padding:max(25px,env(safe-area-inset-top)) 6% max(22px,env(safe-area-inset-bottom))}.arrival-header{font-size:8px}.arrival-header .arrival-coordinates{max-width:130px;text-align:right;line-height:1.6}.arrival h1{font-size:clamp(60px,15vw,108px);line-height:.97}.arrival-kicker{font-size:9px;margin-bottom:25px}.arrival-copy{font-size:13px;max-width:220px;margin-top:26px}.arrival-composition{padding:45px 0}.arrival-orbit{width:120vw;height:120vw;right:-75%;top:37%}.arrival-footer{display:block;padding-top:20px}.arrival-footer p{font-size:8px}}
+@media(max-height:500px) and (orientation:landscape){.arrival{padding:20px 5%}.arrival-composition{padding:20px 0}.arrival-kicker{margin-bottom:15px}.arrival h1{font-size:57px}.arrival-copy{position:absolute;left:58%;bottom:25%;font-size:12px}.arrival-footer{padding-top:14px}.arrival-orbit{height:90vh;width:90vh;right:1%}}
+/* The ending is another layer in the existing scene, not a modal or route. */
+#arrival{position:absolute;inset:0;z-index:5;width:100%;height:100%;min-height:0;overflow:hidden;opacity:0;visibility:hidden;pointer-events:none;padding-bottom:max(24px,env(safe-area-inset-bottom))}
+#arrival .arrival-composition{animation:none;transform:translateY(calc((1 - var(--arrival-reveal,0)) * 24px))}
+#arrival h1{font-size:clamp(64px,9.5vw,164px)}
+#arrival .arrival-footer p{margin-bottom:0}
+@media(max-width:767px){#arrival h1{font-size:clamp(60px,15vw,108px)}}
+@media(max-height:500px) and (orientation:landscape){#arrival h1{font-size:57px}}
+@media(prefers-reduced-motion:reduce){.journey{height:450svh}}

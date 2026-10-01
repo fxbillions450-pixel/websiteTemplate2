@@ -2,60 +2,112 @@ import {chromium,webkit,devices} from '@playwright/test';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {PNG} from 'pngjs';
-await fs.mkdir('evidence',{recursive:true});
-const result={tests:[],engines:[],errors:[],createdAt:new Date().toISOString(),scope:'Real browser functional and rendered-output checks. Includes a complete hands-free journey on desktop, Chromium touch emulation and WebKit. Not physical-device or reference-fidelity certification.'};
-const selection=process.env.LAB_ENGINE;
+const label=process.env.LAB_ENGINE||'desktop', engine=label==='webkit'?webkit:chromium;
+const out='evidence';await fs.mkdir(out,{recursive:true});
+const browser=await engine.launch(label==='webkit'?{}:{args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const options=label==='desktop'?{viewport:{width:1280,height:800}}:{...(label==='mobile'?devices['Pixel 7']:{}),viewport:{width:390,height:844},deviceScaleFactor:1};
+const context=await browser.newContext({...options,reducedMotion:'no-preference'});
+const page=await context.newPage();page.setDefaultTimeout(18000);
+const errors=[],checks=[],samples=[];page.on('pageerror',e=>errors.push(e.message));
 const url=process.env.LAB_URL||'http://127.0.0.1:4173/';
-for(const [name,engine,options] of [['desktop',chromium,{viewport:{width:1440,height:1000},deviceScaleFactor:1}],['mobile',chromium,{...devices['Pixel 7'],viewport:{width:390,height:844},deviceScaleFactor:1}],['webkit',webkit,{...devices['iPhone 13'],viewport:{width:390,height:844},deviceScaleFactor:1}]].filter(([engineName])=>!selection||selection===engineName)){
- const browser=await engine.launch(engine===chromium?{args:['--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader']}:{});
- const context=await browser.newContext({...options,recordVideo:{dir:`evidence/${name}-video`,size:options.viewport},reducedMotion:'no-preference'}),page=await context.newPage();page.setDefaultTimeout(18000);
- const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
- const test=async(label,fn)=>{try{await fn();result.tests.push({engine:name,label,status:'passed'});console.log('PASS',name,label);}catch(e){let debug;try{debug=await page.evaluate(()=>({url:location.href,y:scrollY,player:window.__journeyPlayer,render:window.__motionLab,viewport:[innerWidth,innerHeight],scrollHeight:document.documentElement.scrollHeight}));}catch{}result.tests.push({engine:name,label,status:'failed',error:e.message,debug});console.log('FAIL',name,label,e.message,JSON.stringify(debug));}await fs.writeFile('evidence/results.json',JSON.stringify(result,null,2));};
- const shot=async(label,locator)=>{await (locator||page).screenshot({path:`evidence/${name}-${label}.png`,timeout:30000});};
- const ready=async(id)=>page.waitForFunction(id=>document.querySelector(id)?.dataset.ready==='true',id,{timeout:30000});
- const read=()=>page.evaluate(()=>({...window.__journeyPlayer,y:scrollY,now:performance.now(),renderProgress:window.__motionLab.progress}));
- const pause=async()=>{if(!(await page.locator('body').evaluate(e=>e.classList.contains('motion-paused'))))await page.locator('#pause').click();};
- const seek=async(p)=>{await page.evaluate(p=>{const e=document.querySelector('#journey'),h=document.querySelector('.journey-sticky').offsetHeight;scrollTo({top:e.getBoundingClientRect().top+scrollY+p*(e.offsetHeight-h),behavior:'instant'});},p);await ready('#tunnel-stage');await page.waitForTimeout(350);};
- const start=async()=>{await page.evaluate(()=>{const e=document.querySelector('#journey');scrollTo({top:e.offsetTop-innerHeight*.25,behavior:'instant'});});await ready('#tunnel-stage');await page.waitForFunction(()=>window.__journeyPlayer.mode==='playing',{},{timeout:15000});};
- try{
- await page.goto(url,{waitUntil:'domcontentloaded'});await ready('#hero-stage');await page.waitForTimeout(900);
- await test('Hero still renders real nonuniform WebGL pixels',async()=>{const image=PNG.sync.read(await page.screenshot({timeout:30000}));const colors=new Set();for(let i=0;i<image.data.length;i+=480)colors.add(`${image.data[i]},${image.data[i+1]},${image.data[i+2]}`);assert(colors.size>60);await shot('01-hero');});
- await test('Palette still changes',async()=>{const before=await page.evaluate(()=>window.__motionLab.palette);await page.locator('#palette').click();assert.notEqual(await page.evaluate(()=>window.__motionLab.palette),before);});
- await test('Menu still closes and restores content',async()=>{await page.locator('#menu-toggle').click();assert(await page.locator('#menu').evaluate(e=>e.open));await page.keyboard.press('Escape');assert(!(await page.locator('#menu').evaluate(e=>e.open)));assert(!(await page.locator('#content').evaluate(e=>e.inert)));});
- await page.locator('#depth-stage').evaluate(e=>e.scrollIntoView({behavior:'instant',block:'center'}));await ready('#depth-stage');
- await test('Depth and its Back navigation remain functional',async()=>{await page.locator('#depth-stage').click();await page.waitForFunction(()=>document.querySelector('#detail').open);await page.goBack();await page.waitForFunction(()=>!document.querySelector('#detail').open);});
- await test('No slider or percentage is visible or keyboard-operable',async()=>{assert(!(await page.locator('#scrubber').isVisible()));assert(await page.locator('#scrubber').isDisabled());assert(!(await page.locator('#progress').isVisible()));assert.equal(await page.locator('.outro').count(),0);});
- await test('Journey starts automatically as the viewer enters',async()=>{await start();const before=await read();await page.waitForFunction(p=>window.__journeyPlayer.progress>p+.03,before.progress,{timeout:8000});const after=await read();assert(after.progress>before.progress+.025);await page.waitForFunction(p=>window.__motionLab.progress>p+.02,before.renderProgress,{timeout:8000});assert(after.y>before.y+80);await shot('02-autoplay');});
- await test('Pause freezes camera progress and resume continues',async()=>{await page.locator('#journey-toggle').click();await page.waitForTimeout(150);const a=await read();await page.waitForTimeout(900);const b=await read();assert.equal(b.mode,'paused');assert(Math.abs(b.progress-a.progress)<.001);await page.locator('#journey-toggle').click();await page.waitForFunction(p=>window.__journeyPlayer.progress>p+.012,b.progress,{timeout:8000});});
- await test('Menu suspends autoplay without losing position',async()=>{await page.locator('#menu-toggle').click();await page.waitForTimeout(100);const a=await read();await page.waitForTimeout(700);assert(Math.abs((await read()).progress-a.progress)<.001);await page.keyboard.press('Escape');await page.waitForFunction(p=>window.__journeyPlayer.progress>p+.01,a.progress,{timeout:8000});});
- await test('Hold-to-slow changes automatic travel speed and releases',async()=>{const r=await page.locator('#slow').boundingBox();await page.mouse.move(r.x+r.width/2,r.y+r.height/2);await page.mouse.down();let a,b;try{a=await read();await page.waitForTimeout(1100);b=await read();assert(b.progress>a.progress);assert(b.progress-a.progress<.021);}finally{await page.mouse.up();}await page.waitForTimeout(1100);const c=await read();assert(c.progress-b.progress>(b.progress-a.progress)*2);});
- await test('Leave exits instead of trapping the viewer',async()=>{await page.locator('#journey-leave').click();await page.waitForTimeout(250);assert.equal((await read()).mode,'idle');assert(await page.locator('#journey').evaluate(e=>e.getBoundingClientRect().top>innerHeight*.65));});
- if(name==='mobile')await test('Finger-style swipe reenters then plays hands-free',async()=>{const cdp=await context.newCDPSession(page);await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:185,y:760}]});for(let i=1;i<=25;i++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:185,y:760-i*27}]});await page.waitForTimeout(22);}await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await page.waitForFunction(()=>['playing','entering'].includes(window.__journeyPlayer.mode));await page.waitForTimeout(1200);const a=await read();await page.waitForTimeout(1100);assert((await read()).progress>a.progress+.015);await page.locator('#journey-leave').click();});
- await test('Full hands-free run reaches a different full-screen page',async()=>{
-  await start();
-  // The actual configured duration runs here: no seeking or mocked time.
-  const phases=new Set();for(let i=0;i<95;i++){const d=await read();const phase=await page.evaluate(()=>window.__motionLab.phase);if(!phases.has(phase)&&d.mode==='playing'){await shot('run-'+phase.replace(/[^a-z]+/g,'-'));}phases.add(phase);if(d.mode==='arrival')break;await page.waitForTimeout(550);}
-  assert.equal((await read()).mode,'arrival');assert.equal(new URL(page.url()).hash,'#arrival');
-  await page.waitForFunction(()=>document.querySelector('#journey-veil').hidden);
-  for(const phase of ['portal','dark tunnel','fold','light tunnel','glass / emergence'])assert(phases.has(phase),'Missing '+phase);
-  assert(await page.locator('#arrival').isVisible());assert(!(await page.locator('#content').isVisible()));assert(await page.locator('#content').evaluate(e=>e.inert));
-  assert(await page.evaluate(()=>scrollY===0&&document.documentElement.scrollHeight<=innerHeight+2));
-  assert.equal(await page.evaluate(()=>document.activeElement.id),'arrival-title');await shot('03-arrival');
+const state=()=>page.evaluate(()=>({...window.__journeyPlayer,graphics:window.__motionLab?.progress}));
+const snap=async name=>page.screenshot({path:`${out}/${label}-${name}.png`,timeout:30000});
+async function check(name,fn){try{await fn();checks.push({name,pass:true});console.log('PASS',label,name);}catch(e){checks.push({name,pass:false,error:e.message});console.error('FAIL',label,name,e.message);throw e;}}
+const position=async p=>page.evaluate(p=>{const e=document.querySelector('#journey'),h=document.querySelector('.journey-sticky').clientHeight;window.scrollTo({top:e.offsetTop+p*(e.offsetHeight-h),behavior:'instant'});},p);
+function variance(buffer){const p=PNG.sync.read(buffer);let min=255,max=0;for(let n=0;n<p.data.length;n+=128){const v=p.data[n];min=Math.min(min,v);max=Math.max(max,v);}return max-min;}
+try {
+ await page.goto(url,{waitUntil:'load'});
+ await check('Hero renders and palette interaction survives',async()=>{
+  await page.waitForFunction(()=>window.__motionLab?.ready['hero-stage']);
+  const before=await page.evaluate(()=>window.__motionLab.palette);
+  await page.locator('#palette').click();assert.notEqual(await page.evaluate(()=>window.__motionLab.palette),before);
+  assert(variance(await page.locator('#hero-stage').screenshot({animations:'disabled',timeout:30000}))>20);await snap('hero');
  });
- await test('Destination cannot scroll down into the old website',async()=>{await page.evaluate(()=>scrollTo({top:99999,behavior:'instant'}));await page.waitForTimeout(500);assert.equal(await page.evaluate(()=>scrollY),0);assert(await page.locator('#arrival').isVisible());});
- await test('Browser Back restores paused journey; Forward restores destination',async()=>{await page.goBack();await page.waitForTimeout(700);assert.equal((await read()).mode,'waiting');assert(!(await page.locator('#content').evaluate(e=>e.inert)));const a=await read();await page.waitForTimeout(900);assert(Math.abs((await read()).progress-a.progress)<.001);await page.goForward();await page.waitForTimeout(450);assert(await page.locator('#arrival').isVisible());});
- await test('Replay really restarts and does not duplicate completion',async()=>{await page.setViewportSize({width:options.viewport.width,height:options.viewport.height-60});await page.waitForTimeout(250);await page.locator('#arrival-replay').click();await page.waitForTimeout(500);assert((await read()).progress<.1);assert.equal((await read()).mode,'playing');await page.waitForTimeout(850);assert((await read()).progress>.015);const d=await read();assert(Math.abs(d.progress-d.renderProgress)<.04);await page.setViewportSize(options.viewport);});
- await test('Resize preserves journey progress, without an unexpected restart',async()=>{await pause();await seek(.62);const a=await read();await page.setViewportSize({width:844,height:390});await page.waitForTimeout(700);assert(Math.abs((await read()).progress-a.progress)<.015);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));await shot('04-landscape');await page.setViewportSize(options.viewport);await page.waitForTimeout(700);assert(Math.abs((await read()).progress-a.progress)<.015);});
- await test('Reverse traversal restores the earlier scene',async()=>{await seek(.28);assert.equal(await page.evaluate(()=>window.__motionLab.phase),'dark tunnel');await shot('05-reverse');});
- await test('Destination deep link and reload stay on the new page',async()=>{await page.goto(url+'#arrival');await page.waitForFunction(()=>window.__journeyPlayer.mode==='arrival');assert(await page.locator('#arrival').isVisible());await page.reload();await page.waitForFunction(()=>window.__journeyPlayer.mode==='arrival');assert(!(await page.locator('#content').isVisible()));await page.locator('#arrival-home').click();await ready('#hero-stage');assert.equal(new URL(page.url()).hash,'#interaction');assert(await page.locator('#hero-stage').isVisible());});
- await test('No captured application or graphics errors',async()=>{assert.deepEqual(errors,[]);assert.deepEqual(await page.evaluate(()=>window.__motionLab.errors),[]);});
- }catch(e){result.errors.push({engine:name,error:e.message});try{await shot('fatal');}catch{}}
- result.engines.push({name,version:browser.version(),options,consoleErrors:errors});await context.close();await browser.close();
+ await check('No journey transport buttons, slider or percentage exist',async()=>{
+  assert.equal(await page.locator('#slow,#scrubber,#progress,#journey-toggle,#journey-leave,#arrival-replay').count(),0);
+  assert.equal(await page.locator('#journey button,#journey input').count(),0);
+ });
+ await check('Scenes menu and depth card still work',async()=>{
+  await page.locator('#menu-toggle').click();await page.locator('#menu a[href="#depth"]').click();
+  await page.waitForFunction(()=>window.__motionLab?.ready['depth-stage']);
+  await page.waitForTimeout(900);await page.locator('#depth-stage').click();
+  await page.waitForFunction(()=>document.querySelector('#detail').open);await page.locator('#detail-close').click();
+  await page.waitForFunction(()=>!document.querySelector('#detail').open);
+ });
+ await check('Partial viewport entry causes zero automatic scroll or snapping',async()=>{
+  await page.evaluate(()=>document.activeElement.blur());
+  const y=await page.evaluate(()=>{const y=document.querySelector('#journey').offsetTop-120;window.scrollTo({top:y,behavior:'instant'});return scrollY;});
+  await page.waitForFunction(()=>window.__motionLab?.ready['tunnel-stage']);
+  await page.waitForTimeout(650);
+  assert(Math.abs(await page.evaluate(()=>scrollY)-y)<1);assert.equal((await state()).starts,0);
+  assert.equal(await page.locator('.journey-sticky').evaluate(e=>getComputedStyle(e).position),'sticky');
+ });
+ await check('Fully visible stage starts at 1x without a positioning switch',async()=>{
+  await page.mouse.wheel(0,125); // WebKit uses a phone-width desktop context; touch is exercised separately in Chromium.
+  await page.waitForFunction(()=>window.__journeyPlayer.auto,{},{timeout:20000});
+  const a=await state();await page.waitForTimeout(2100);const b=await state();
+  assert(b.progress>a.progress+.06);assert(b.progress<a.progress+.24);
+  assert.equal(b.duration,18);assert.equal(b.playbackRate,1);
+  assert.equal(await page.locator('.journey-sticky').evaluate(e=>getComputedStyle(e).position),'sticky');
+  samples.push({name:'normal-speed',a,b});await snap('autoplay');
+ });
+ await check('Upward scroll immediately wins and never auto-resumes against the reader',async()=>{
+  const a=await state();await page.mouse.wheel(0,-240);await page.waitForTimeout(400);const b=await state();
+  assert(b.progress<a.progress);assert(b.reverse);assert(!b.auto);
+  await page.waitForTimeout(1400);const c=await state();assert(Math.abs(c.progress-b.progress)<.002);
+ });
+ await check('Natural rewind can leave the scene into the page above',async()=>{
+  for(let n=0;n<6;n++){await page.mouse.wheel(0,-700);await page.waitForTimeout(70);}
+  await page.waitForTimeout(300);assert.equal((await state()).progress,0);assert.equal((await state()).fullyVisible,false);
+ });
+ if(label==='mobile')await check('Native finger-style forward and reverse swipes work',async()=>{
+  await page.evaluate(()=>window.scrollTo({top:document.querySelector('#journey').offsetTop-60,behavior:'instant'}));
+  const cdp=await context.newCDPSession(page);
+  async function swipe(start,end){await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:195,y:start}]});for(let n=1;n<=12;n++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:195,y:start+(end-start)*n/12}]});await page.waitForTimeout(22);}await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}
+  await swipe(700,420);await page.waitForFunction(()=>window.__journeyPlayer.auto,{},{timeout:15000});
+  const a=await state();await swipe(400,720);await page.waitForTimeout(700);const b=await state();assert(b.progress<a.progress||b.progress===0);assert(!b.auto);await cdp.detach();
+ });
+ await check('Full unattended journey reaches the ending at normal wall-clock speed',async()=>{
+  await page.evaluate(()=>window.scrollTo({top:document.querySelector('#journey').offsetTop-12,behavior:'instant'}));
+  await page.mouse.wheel(0,15);await page.waitForFunction(()=>window.__journeyPlayer.auto,{},{timeout:20000});
+  const start=Date.now(),initial=await state();let b=initial,seen=new Set();
+  while(Date.now()-start<30000){b=await state();samples.push({elapsedMs:Date.now()-start,progress:b.progress,mode:b.mode,graphics:b.graphics});
+   const phase=await page.evaluate(()=>window.__motionLab.phase);if(!seen.has(phase)&&b.progress>.15){seen.add(phase);await snap('phase-'+phase.replace(/[^a-z]/g,'-'));}
+   if(b.progress===1)break;await page.waitForTimeout(250);
+  }
+  assert.equal(b.progress,1);assert.equal(b.mode,'ended');assert(!b.auto);
+  const elapsed=Date.now()-start;assert(elapsed<27000);assert(elapsed>10000);
+  assert.equal(await page.locator('#arrival').evaluate(e=>getComputedStyle(e).opacity),'1');
+  assert.equal(await page.locator('#content').evaluate(e=>e.inert),false);
+  assert.notEqual(await page.locator('body').evaluate(e=>getComputedStyle(e).overflowY),'hidden');
+  assert(!page.url().includes('#arrival'));samples.push({name:'full-run',elapsedMs:elapsed,initial,final:b});await snap('ending');
+ });
+ await check('Scrolling upward from the ending reverses it without Back or Replay',async()=>{
+  await page.mouse.wheel(0,-220);await page.waitForTimeout(450);const b=await state();assert(b.progress<1);assert(b.reverse);assert(!b.auto);
+  assert(Number(await page.locator('#arrival').evaluate(e=>getComputedStyle(e).opacity))<.95);await snap('reverse-ending');
+ });
+ await check('Returning to identical scroll coordinates produces the same 3D frame',async()=>{
+  await position(.60);await page.waitForTimeout(500);const a=await page.locator('#tunnel-stage').screenshot({timeout:30000});
+  await position(.30);await page.waitForTimeout(200);await position(.60);await page.waitForTimeout(500);const b=await page.locator('#tunnel-stage').screenshot({timeout:30000});
+  assert(variance(a)>20);assert(variance(b)>20);const pa=PNG.sync.read(a),pb=PNG.sync.read(b);assert.equal(pa.data.length,pb.data.length);
+  let sum=0;for(let i=0;i<pa.data.length;i+=4)sum+=Math.abs(pa.data[i]-pb.data[i]);const diff=sum/(pa.width*pa.height);assert(diff<2,`mean red-channel delta ${diff}`);samples.push({name:'reversible-pixels',meanDelta:diff});
+ });
+ await check('Resize preserves the manual timeline position',async()=>{
+  const a=await state();await page.setViewportSize({width:844,height:390});await page.waitForTimeout(600);const b=await state();assert(Math.abs(b.progress-a.progress)<.01);assert(!b.auto);
+  await snap('landscape');await page.setViewportSize(options.viewport);await page.waitForTimeout(400);
+ });
+ await check('Repeated backward scrolling returns to the previous content without a trap',async()=>{
+  for(let n=0;n<14;n++){await page.mouse.wheel(0,-600);await page.waitForTimeout(40);}await page.waitForTimeout(400);
+  assert.equal((await state()).progress,0);assert.equal((await state()).fullyVisible,false);assert(!await page.locator('#content').evaluate(e=>e.inert));
+ });
+ await check('Reduced-motion preference disables autoplay without disabling native navigation',async()=>{
+  await page.emulateMedia({reducedMotion:'reduce'});await position(.5);await page.waitForTimeout(500);const a=await state();await page.waitForTimeout(300);const b=await state();assert(!b.auto);assert(Math.abs(a.progress-b.progress)<.002);
+  await page.mouse.wheel(0,-400);await page.waitForTimeout(250);assert((await state()).progress<b.progress);
+ });
+ await check('No application or graphics errors were captured',async()=>{assert.deepEqual(errors,[]);assert.deepEqual(await page.evaluate(()=>window.__motionLab.errors),[]);});
+} catch(e) { console.error('Stopped after failure to avoid misleading cascading results.'); }
+finally {
+ const result={engine:label,browser:browser.version(),viewport:options.viewport,sourceCommit:process.env.GITHUB_SHA||null,checks,samples,errors,passed:checks.filter(x=>x.pass).length,failed:checks.filter(x=>!x.pass).length};
+ await fs.writeFile(`${out}/results.json`,JSON.stringify(result,null,2));await context.close();await browser.close();
+ console.log(JSON.stringify({engine:label,passed:result.passed,failed:result.failed}));if(result.failed)process.exitCode=1;
 }
-if(!selection||selection==='desktop'){
-const browser=await chromium.launch({args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
-const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'}),page=await context.newPage();
-try{await page.goto(url);await page.waitForFunction(()=>window.__motionLab);await page.evaluate(()=>document.querySelector('#journey').scrollIntoView({behavior:'instant'}));await page.waitForTimeout(1800);const y=await page.evaluate(()=>scrollY);await page.waitForTimeout(1200);assert.equal(await page.evaluate(()=>scrollY),y);assert.equal(await page.locator('#pause').getAttribute('aria-pressed'),'true');result.tests.push({engine:'reduced-motion',label:'No unsolicited automatic movement with reduced motion enabled',status:'passed'});}catch(e){result.tests.push({engine:'reduced-motion',status:'failed',error:e.message});}
-try{await page.goto(url+'?no-webgl');await page.waitForFunction(()=>document.querySelector('#hero-stage').classList.contains('error'));await page.evaluate(()=>document.querySelector('#journey').scrollIntoView({behavior:'instant'}));await page.waitForFunction(()=>!document.querySelector('#journey-skip').hidden);await page.locator('#journey-skip').click();await page.waitForFunction(()=>window.__journeyPlayer.mode==='arrival');result.tests.push({engine:'fallback',label:'Unavailable graphics have a working nonblocking destination exit',status:'passed'});}catch(e){result.tests.push({engine:'fallback',status:'failed',error:e.message});}await browser.close();
-}
-result.summary={passed:result.tests.filter(t=>t.status==='passed').length,failed:result.tests.filter(t=>t.status==='failed').length,fatal:result.errors.length};await fs.writeFile('evidence/results.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result.summary));if(result.summary.failed||result.summary.fatal)process.exitCode=1;

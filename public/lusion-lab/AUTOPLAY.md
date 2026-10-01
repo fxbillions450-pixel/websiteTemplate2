@@ -1,12 +1,7 @@
-# Journey autoplay revision
+# Continuous reversible journey (replaces modal autoplay)
 
-The native-scroll/WebGL engine, hero and depth renderer are unchanged. A separate small playback controller is the only automatic writer of the document scroll coordinate.
+The sticky stage remains in native document flow. Playback begins only once it covers the viewport, with no snap or pull-in tween. Normal 1x playback maps the full sequence to 18 seconds of visible elapsed time; no slow-motion multiplier is active. Actual frame rate still depends on the graphics device.
 
-- The slider and percentage are hidden from layout and accessibility and the input is disabled. Their internal renderer bindings are retained.
-- Entering the journey aligns the view and starts hands-free playback. The default run is 28 seconds of active playback, plus entry and transition time. Slow motion reduces both travel and autonomous motion.
-- Manual scrolling can take priority. Pause, Leave, and reduced-motion preferences are respected. Background tabs and open dialogs do not advance the journey.
-- The old outro section is removed. The end transitions to a distinct full-screen #arrival view with its own visual composition, title, focus, history, replay and return controls. The old page is invisible, inert and removed from document flow.
-- Browser Back restores the journey paused, preventing a navigation loop. Forward, deep links and reload restore the destination.
-- Only preview/lusion-lab-20261001 is updated. The production portfolio branch is not modified.
+The scroll coordinate drives the camera, corridor, character and fracture. The ending is a composited layer of that same timeline, not a new route, hidden-page modal or separate scroll container. Upward wheel, touch or keyboard input permanently suspends forward autoplay until new forward input or deliberate re-entry. Scroll all the way up to return to the preceding section. No transport buttons, scrubber or percentage are rendered inside the journey or ending.
 
-Run the updated scripts/lusion-lab-qa.mjs after bundling. Report actual test outcomes; these instructions are not proof of a passed run.
+Space pauses/resumes; Escape pauses. Reduced-motion preference disables automatic progression, but native scrubbing remains available. Navigation menus still own their normal temporary modal lock; the journey never adds one. The hero and depth-card scene implementations are unchanged. The approved production portfolio is not modified by this preview branch.
