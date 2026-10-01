@@ -7,11 +7,12 @@
   'use strict';
   const $ = selector => document.querySelector(selector);
   const journey = $('#journey'), sticky = $('.journey-sticky'), arrival = $('#arrival');
+  const menuElement=$('#menu'),detailElement=$('#detail'),stageElement=$('#tunnel-stage');
   if (!journey || !sticky || !arrival) return;
   const clamp = (n, min = 0, max = 1) => Math.min(max, Math.max(min, n));
   const smooth = n => { n = clamp(n); return n * n * (3 - 2 * n); };
   const preference = matchMedia('(prefers-reduced-motion: reduce)');
-  const data = { version: 'journey-fluid-002', duration: 18, playbackRate: 1,
+  const data = { version: 'journey-fluid-003', duration: 18, playbackRate: 1,
     mode: 'before', progress: 0, renderProgress: 0, starts: 0, auto: false,
     reverse: false, fullyVisible: false, elapsed: 0 };
   window.__journeyPlayer = data;
@@ -20,10 +21,13 @@
   let touching = false, fingerY = 0, pointerActive = false, layoutDirty = true;
   let attached = false, fallbackFrame = null, previousY = scrollY, previousFull = false;
   let wasSuspended = true, lastUI = '', resizing = false;
-  const hasDialog = () => Boolean($('#menu')?.open || $('#detail')?.open);
+  let lastEnding = -1, lastHeader = -1, lastFull = null;
+  let visualProgress = 0, smoothingTime = null;
+  const round = n => Math.round(n * 100000) / 100000;
+  const hasDialog = () => Boolean(menuElement?.open || detailElement?.open);
   const isPaused = () => document.body.classList.contains('motion-paused');
-  const ready = () => $('#tunnel-stage').dataset.ready === 'true';
-  const failed = () => $('#tunnel-stage').classList.contains('error');
+  const ready = () => stageElement.dataset.ready === 'true';
+  const failed = () => stageElement.classList.contains('error');
   const write = y => {
     cursor = y;
     window.scrollTo({ top: y, behavior: 'instant' });
@@ -91,25 +95,27 @@
     data.auto = false; reverse = false; armed = true; lastTime = null;
   }));
   function updateUI(p) {
-    const ending = smooth((p - .91) / .09);
+    const ending = round(smooth((p - .91) / .09));
+    if (ending !== lastEnding) { lastEnding = ending;
     arrival.style.opacity = String(ending);
     arrival.style.visibility = ending > 0 ? 'visible' : 'hidden';
-    arrival.style.setProperty('--arrival-reveal', String(ending));
+    arrival.style.setProperty('--arrival-reveal', String(ending)); }
     const key = String(p > .97);
     if (key !== lastUI) { lastUI = key; arrival.setAttribute('aria-hidden', String(p <= .97)); }
     // Fade over scroll distance, not a CSS mode change that repositions the stage.
-    const headerFade = 1 - smooth((scrollY - top + height * .18) / (height * .18));
-    document.documentElement.style.setProperty('--journey-header-opacity', String(headerFade));
-    document.body.classList.toggle('journey-full', data.fullyVisible);
+    const headerFade = round(1 - smooth((scrollY - top + height * .18) / (height * .18)));
+    if (headerFade !== lastHeader) { lastHeader = headerFade;
+    document.documentElement.style.setProperty('--journey-header-opacity', String(headerFade)); }
+    if (lastFull !== data.fullyVisible) { lastFull = data.fullyVisible;
+    document.body.classList.toggle('journey-full', data.fullyVisible); }
   }
   function step(time) {
     if (resizing) { lastTime = time; return; }
     if (layoutDirty) measure();
     let y = scrollY;
-    const r = sticky.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     // Zero pre-entry movement: both edges must cover the viewport naturally.
-    const full = r.top <= 1 && r.top >= -1 && r.bottom >= viewportHeight - 1 && y >= top - 1;
+    const full = y >= top - 1 && y <= top + span + 1 && height >= viewportHeight - 1;
     data.fullyVisible = full;
     let dt = lastTime === null ? 0 : Math.max(0, (time - lastTime) / 1000);
     lastTime = time;
@@ -137,11 +143,20 @@
     }
     let p = clamp((y - top) / span);
     if (y >= top + span - 1) p = 1;
-    data.progress = data.renderProgress = p;
+    data.progress = p;
+    // Autoplay uses its fractional cursor directly. Manual wheel steps get a
+    // short, frame-rate-independent visual catch-up; input itself is never delayed.
+    const visualDt = smoothingTime === null ? 1 : Math.max(0,(time-smoothingTime)/1000);
+    smoothingTime = time;
+    const goal = data.auto ? clamp((cursor-top)/span) : p;
+    if(data.auto || preference.matches || y < top - 1 || p === 1) visualProgress = goal;
+    else visualProgress += (goal-visualProgress)*(1-Math.exp(-visualDt*26));
+    if(Math.abs(goal-visualProgress)<.00001)visualProgress=goal;
+    data.renderProgress = visualProgress;
     data.reverse = reverse;
     data.mode = p >= 1 ? 'ended' : y < top - 1 ? 'before' : blocked && isPaused() ? 'paused' : data.auto ? 'playing' : reverse ? 'reverse' : 'manual';
     data.telemetry = { top, span, height, y, cursor, dt, blocked, touching, inputUntil, time, reverse };
-    updateUI(p);
+    updateUI(data.renderProgress);
     previousY = y; previousFull = full;
   }
   data.step = step;
@@ -153,16 +168,22 @@
     resizing = true;
     requestAnimationFrame(() => {
       measure();
-      if (preserve) { write(top + p * span); previousY = scrollY; data.progress = data.renderProgress = p; }
+      if (preserve) { write(top + p * span); previousY = scrollY; data.progress = data.renderProgress = visualProgress = p; }
       lastTime = null; resizing = false;
     });
   }
   addEventListener('resize', resize, { passive: true });
+  window.visualViewport?.addEventListener('resize', () => {
+    // Browser-chrome changes resize the scene. Pinch zoom must not move the document.
+    if(Math.abs((window.visualViewport?.scale||1)-1)<.01) resize();
+  }, { passive: true });
   const observer = new ResizeObserver(() => { layoutDirty = true; });
   observer.observe(journey); observer.observe(sticky);
+  for(const id of ['#interaction','#depth']){const element=$(id);if(element)observer.observe(element);}
   document.addEventListener('visibilitychange', () => { lastTime = null; wasSuspended = true; });
   preference.addEventListener('change', () => { data.auto = false; lastTime = null; });
   addEventListener('popstate', () => { data.auto = false; reverse = true; armed = false; lastTime = null; layoutDirty = true; });
-  addEventListener('pagehide', () => { cancelAnimationFrame(fallbackFrame); observer.disconnect(); });
+  addEventListener('pagehide', e => { cancelAnimationFrame(fallbackFrame); if(!e.persisted)observer.disconnect(); });
+  addEventListener('pageshow', e => { if(e.persisted){lastTime=null;smoothingTime=null;layoutDirty=true;wasSuspended=true;if(!attached)fallbackFrame=requestAnimationFrame(fallback);} });
   measure(); updateUI(0); fallbackFrame = requestAnimationFrame(fallback);
 })();

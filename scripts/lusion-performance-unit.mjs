@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import * as T from 'three';
+import {FrameBudget,createTunnelTiles} from './site/motion-runtime.js';
+const checks=[];
+function check(name,fn){fn();checks.push({name,pass:true});}
+check('Resolution never changes for stable 60/120 Hz rendering',()=>{for(const ms of [16.67,8.33]){const b=new FrameBudget(1.35);for(let i=0;i<1200;i++)b.sample(ms);assert.equal(b.ratio,1.35);}});
+check('Sustained slow frames lower pixel work without changing timeline time',()=>{const b=new FrameBudget(1.35);for(let i=0;i<600;i++)b.sample(35);assert.equal(b.ratio,.85);assert.equal(b.min,.85);});
+check('Fast recovery is bounded and gradual',()=>{const b=new FrameBudget(1.35);for(let i=0;i<600;i++)b.sample(35);const low=b.ratio;for(let i=0;i<200;i++)b.sample(16);assert.equal(b.ratio,low);for(let i=0;i<4000;i++)b.sample(16);assert.equal(b.ratio,1.35);});
+check('Compilation stalls and invalid timing cannot thrash resolution',()=>{const b=new FrameBudget(1);for(const ms of [0,-1,NaN,Infinity,400,9000])assert.equal(b.sample(ms),false);assert.equal(b.ratio,1);assert.equal(b.samples,0);});
+check('Shader transform attributes and instance counts match the authored tunnel',()=>{const scene=new T.Scene(),m=new T.MeshStandardMaterial(),l=new T.MeshBasicMaterial();const tiles=createTunnelTiles(T,scene,m,l);assert.equal(tiles.blocks.count,960);assert.equal(tiles.lights.count,60);const a=tiles.blocks.geometry.getAttribute('aTile');assert.deepEqual([a.getX(959),a.getY(959),a.getZ(959)],[29,3,3.5]);tiles.dispose();});
+check('GPU tile updates do not upload new instance matrices',()=>{const tiles=createTunnelTiles(T,new T.Scene(),new T.MeshStandardMaterial(),new T.MeshBasicMaterial());const before=tiles.blocks.instanceMatrix.version;for(let i=0;i<1000;i++)tiles.update(i/1000,i*.1,4.7,.2,.3);assert.equal(tiles.blocks.instanceMatrix.version,before);assert.equal(tiles.blocks.instanceMatrix.usage,T.StaticDrawUsage);tiles.dispose();});
+check('Position and normal shader share the same original XYZ rotation',()=>{const m=new T.MeshStandardMaterial(),tiles=createTunnelTiles(T,new T.Scene(),m,new T.MeshBasicMaterial());const shader={uniforms:{},vertexShader:'#include <beginnormal_vertex>\n#include <begin_vertex>'};m.onBeforeCompile(shader);assert(shader.vertexShader.includes('tileBasis*(objectNormal/tileScale)'));assert(shader.vertexShader.includes('tileBasis*(position*tileScale)+tileCenter'));tiles.update(.6,57.36,4.7,1,0);assert.equal(shader.uniforms.uProgress.value,.6);tiles.dispose();});
+const controller=await fs.readFile('site/journey-player.js','utf8');assert(controller.includes('duration: 18'));assert(!controller.includes("overflow='hidden'"));checks.push({name:'18-second timeline retained without scroll locks',pass:true});
+await fs.mkdir('evidence',{recursive:true});await fs.writeFile('evidence/performance-unit.json',JSON.stringify({passed:checks.length,failed:0,checks},null,2));console.log(`${checks.length} runtime checks passed`);
