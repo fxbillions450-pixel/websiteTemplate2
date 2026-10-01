@@ -43,7 +43,7 @@ try {
   assert.equal(await page.locator('.journey-sticky').evaluate(e=>getComputedStyle(e).position),'sticky');
  });
  await check('Fully visible stage starts at 1x without a positioning switch',async()=>{
-  await page.mouse.wheel(0,125); // WebKit uses a phone-width desktop context; touch is exercised separately in Chromium.
+  await page.mouse.wheel(0,125);
   await page.waitForFunction(()=>window.__journeyPlayer.auto,{},{timeout:20000});
   const a=await state();await page.waitForTimeout(2100);const b=await state();
   assert(b.progress>a.progress+.06);assert(b.progress<a.progress+.24);
@@ -52,8 +52,10 @@ try {
   samples.push({name:'normal-speed',a,b});await snap('autoplay');
  });
  await check('Upward scroll immediately wins and never auto-resumes against the reader',async()=>{
-  const a=await state();await page.mouse.wheel(0,-240);await page.waitForTimeout(400);const b=await state();
-  assert(b.progress<a.progress);assert(b.reverse);assert(!b.auto);
+  await page.evaluate(()=>{window.__reverseInput=null;addEventListener('wheel',e=>{if(e.deltaY<0)window.__reverseInput={y:scrollY,time:performance.now()};},{once:true,capture:true});});
+  await page.mouse.wheel(0,-240);
+  await page.waitForFunction(()=>{const p=window.__journeyPlayer,i=window.__reverseInput;return i&&p.reverse&&!p.auto&&p.telemetry.y<i.y-100;},null,{timeout:15000});
+  const b=await state();assert(b.reverse);assert(!b.auto);samples.push({name:'reverse-input',state:b,input:await page.evaluate(()=>window.__reverseInput)});
   await page.waitForTimeout(1400);const c=await state();assert(Math.abs(c.progress-b.progress)<.002);
  });
  await check('Natural rewind can leave the scene into the page above',async()=>{
@@ -70,31 +72,36 @@ try {
  await check('Full unattended journey reaches the ending at normal wall-clock speed',async()=>{
   await page.evaluate(()=>window.scrollTo({top:document.querySelector('#journey').offsetTop-12,behavior:'instant'}));
   await page.mouse.wheel(0,15);await page.waitForFunction(()=>window.__journeyPlayer.auto,{},{timeout:20000});
-  const start=Date.now(),initial=await state();let b=initial,seen=new Set();
+  const start=Date.now(),initial=await state();let b=initial;
+  // Record lightweight state only. GPU readback screenshots cannot be inside a
+  // wall-clock playback assertion: software rendering can stall while capturing.
   while(Date.now()-start<30000){b=await state();samples.push({elapsedMs:Date.now()-start,progress:b.progress,mode:b.mode,graphics:b.graphics});
-   const phase=await page.evaluate(()=>window.__motionLab.phase);if(!seen.has(phase)&&b.progress>.15){seen.add(phase);await snap('phase-'+phase.replace(/[^a-z]/g,'-'));}
    if(b.progress===1)break;await page.waitForTimeout(250);
   }
+  const elapsed=Date.now()-start;
   assert.equal(b.progress,1);assert.equal(b.mode,'ended');assert(!b.auto);
-  const elapsed=Date.now()-start;assert(elapsed<27000);assert(elapsed>10000);
+  assert(elapsed<27000);assert(elapsed>10000);
   assert.equal(await page.locator('#arrival').evaluate(e=>getComputedStyle(e).opacity),'1');
   assert.equal(await page.locator('#content').evaluate(e=>e.inert),false);
   assert.notEqual(await page.locator('body').evaluate(e=>getComputedStyle(e).overflowY),'hidden');
   assert(!page.url().includes('#arrival'));samples.push({name:'full-run',elapsedMs:elapsed,initial,final:b});await snap('ending');
  });
  await check('Scrolling upward from the ending reverses it without Back or Replay',async()=>{
-  await page.mouse.wheel(0,-220);await page.waitForTimeout(450);const b=await state();assert(b.progress<1);assert(b.reverse);assert(!b.auto);
+  await page.mouse.wheel(0,-220);await page.waitForFunction(()=>window.__journeyPlayer.progress<.98&&window.__journeyPlayer.reverse,null,{timeout:15000});const b=await state();assert(b.progress<1);assert(b.reverse);assert(!b.auto);
   assert(Number(await page.locator('#arrival').evaluate(e=>getComputedStyle(e).opacity))<.95);await snap('reverse-ending');
  });
  await check('Returning to identical scroll coordinates produces the same 3D frame',async()=>{
-  await position(.60);await page.waitForTimeout(500);const a=await page.locator('#tunnel-stage').screenshot({timeout:30000});
-  await position(.30);await page.waitForTimeout(200);await position(.60);await page.waitForTimeout(500);const b=await page.locator('#tunnel-stage').screenshot({timeout:30000});
+  await position(.60);await page.waitForFunction(()=>Math.abs(window.__motionLab.progress-.60)<.001);const a=await page.locator('#tunnel-stage').screenshot({timeout:30000});
+  await position(.30);await page.waitForFunction(()=>Math.abs(window.__motionLab.progress-.30)<.001);await position(.60);await page.waitForFunction(()=>Math.abs(window.__motionLab.progress-.60)<.001);const b=await page.locator('#tunnel-stage').screenshot({timeout:30000});
   assert(variance(a)>20);assert(variance(b)>20);const pa=PNG.sync.read(a),pb=PNG.sync.read(b);assert.equal(pa.data.length,pb.data.length);
   let sum=0;for(let i=0;i<pa.data.length;i+=4)sum+=Math.abs(pa.data[i]-pb.data[i]);const diff=sum/(pa.width*pa.height);assert(diff<2,`mean red-channel delta ${diff}`);samples.push({name:'reversible-pixels',meanDelta:diff});
  });
  await check('Resize preserves the manual timeline position',async()=>{
-  const a=await state();await page.setViewportSize({width:844,height:390});await page.waitForTimeout(600);const b=await state();assert(Math.abs(b.progress-a.progress)<.01);assert(!b.auto);
+  const a=await state();await page.setViewportSize({width:844,height:390});await page.waitForTimeout(600);const b=await state();samples.push({name:'resize',before:a,after:b});assert(Math.abs(b.progress-a.progress)<.01);assert(!b.auto);
   await snap('landscape');await page.setViewportSize(options.viewport);await page.waitForTimeout(400);
+ });
+ await check('Original scene phases still render with no transport overlay',async()=>{
+  for(const [name,p] of [['dark',.35],['fold',.6],['light',.8]]){await position(p);await page.waitForFunction(p=>Math.abs(window.__motionLab.progress-p)<.001,p);await snap('phase-'+name);assert.equal(await page.locator('#journey button').count(),0);}
  });
  await check('Repeated backward scrolling returns to the previous content without a trap',async()=>{
   for(let n=0;n<14;n++){await page.mouse.wheel(0,-600);await page.waitForTimeout(40);}await page.waitForTimeout(400);

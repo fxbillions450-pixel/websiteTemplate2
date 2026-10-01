@@ -11,7 +11,7 @@
   const clamp = (n, min = 0, max = 1) => Math.min(max, Math.max(min, n));
   const smooth = n => { n = clamp(n); return n * n * (3 - 2 * n); };
   const preference = matchMedia('(prefers-reduced-motion: reduce)');
-  const data = { version: 'journey-fluid-001', duration: 18, playbackRate: 1,
+  const data = { version: 'journey-fluid-002', duration: 18, playbackRate: 1,
     mode: 'before', progress: 0, renderProgress: 0, starts: 0, auto: false,
     reverse: false, fullyVisible: false, elapsed: 0 };
   window.__journeyPlayer = data;
@@ -103,6 +103,7 @@
     document.body.classList.toggle('journey-full', data.fullyVisible);
   }
   function step(time) {
+    if (resizing) { lastTime = time; return; }
     if (layoutDirty) measure();
     let y = scrollY;
     const r = sticky.getBoundingClientRect();
@@ -148,8 +149,13 @@
   function fallback(time) { step(time); if (!attached) fallbackFrame = requestAnimationFrame(fallback); }
   function resize() {
     if (resizing) return;
+    const p = data.progress, preserve = previousY >= top - 1 && p > 0;
     resizing = true;
-    requestAnimationFrame(() => { measure(true); lastTime = null; resizing = false; });
+    requestAnimationFrame(() => {
+      measure();
+      if (preserve) { write(top + p * span); previousY = scrollY; data.progress = data.renderProgress = p; }
+      lastTime = null; resizing = false;
+    });
   }
   addEventListener('resize', resize, { passive: true });
   const observer = new ResizeObserver(() => { layoutDirty = true; });
