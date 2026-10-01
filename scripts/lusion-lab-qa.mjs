@@ -56,7 +56,11 @@ try {
   await page.mouse.wheel(0,-240);
   await page.waitForFunction(()=>{const p=window.__journeyPlayer,i=window.__reverseInput;return i&&p.reverse&&!p.auto&&p.telemetry.y<i.y-100;},null,{timeout:15000});
   const b=await state();assert(b.reverse);assert(!b.auto);samples.push({name:'reverse-input',state:b,input:await page.evaluate(()=>window.__reverseInput)});
-  await page.waitForTimeout(1400);const c=await state();assert(Math.abs(c.progress-b.progress)<.002);
+  await page.waitForTimeout(1400);const c=await state();
+  // Remaining native backward momentum is valid; only forward movement would
+  // mean autoplay is fighting the user. Do not demand that native scroll freeze.
+  assert(c.progress<=b.progress+.002);assert(!c.auto);assert(c.reverse);
+  samples.push({name:'reverse-settled',before:b,after:c});
  });
  await check('Natural rewind can leave the scene into the page above',async()=>{
   for(let n=0;n<6;n++){await page.mouse.wheel(0,-700);await page.waitForTimeout(70);}
