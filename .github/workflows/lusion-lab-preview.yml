@@ -1,0 +1,59 @@
+name: Isolated Lusion motion lab verification
+on:
+  push:
+    branches: [preview/lusion-lab-20261001]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated lab tools, not the production project
+        run: |
+          mkdir -p "$RUNNER_TEMP/lusion-lab/site"
+          cp -r public/lusion-lab/* "$RUNNER_TEMP/lusion-lab/site/"
+          cp scripts/lusion-lab-{build,qa}.mjs "$RUNNER_TEMP/lusion-lab/"
+          cd "$RUNNER_TEMP/lusion-lab"
+          npm init -y
+          npm install --save-exact three@0.180.0 esbuild@0.25.10 @playwright/test@1.63.0 pngjs@7.0.0 agent-browser
+          npx playwright install --with-deps chromium webkit
+      - name: Bundle an offline single-file version and start the preview server
+        run: |
+          cd "$RUNNER_TEMP/lusion-lab"
+          node lusion-lab-build.mjs
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory site > server.log 2>&1 &
+          sleep 2
+      - name: Inspect browser output with agent-browser
+        continue-on-error: true
+        run: |
+          cd "$RUNNER_TEMP/lusion-lab"
+          export AGENT_BROWSER_EXECUTABLE_PATH="$(node -p "require('@playwright/test').chromium.executablePath()")"
+          timeout 45s npx agent-browser --session lusion-lab open http://127.0.0.1:4173/
+          timeout 20s npx agent-browser --session lusion-lab snapshot -i > agent-browser-snapshot.txt
+          timeout 20s npx agent-browser --session lusion-lab screenshot agent-browser-preview.png
+          npx agent-browser --session lusion-lab close
+      - name: Desktop, touch and WebKit interaction checks
+        run: cd "$RUNNER_TEMP/lusion-lab" && node lusion-lab-qa.mjs
+      - name: Package standalone HTML and original source
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/lusion-lab"
+          zip -qr lusion-motion-lab.zip site lusion-lab-build.mjs lusion-lab-qa.mjs package.json package-lock.json THREE-LICENSE.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lusion-motion-lab-preview
+          path: |
+            ${{ runner.temp }}/lusion-lab/lusion-motion-lab.zip
+            ${{ runner.temp }}/lusion-lab/site/standalone.html
+            ${{ runner.temp }}/lusion-lab/evidence/
+            ${{ runner.temp }}/lusion-lab/agent-browser-snapshot.txt
+            ${{ runner.temp }}/lusion-lab/agent-browser-preview.png
+          retention-days: 14

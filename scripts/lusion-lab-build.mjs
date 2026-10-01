@@ -1,0 +1,11 @@
+import {build} from 'esbuild';
+import fs from 'node:fs/promises';
+await build({entryPoints:['site/main.js'],bundle:true,format:'iife',minify:true,target:['es2022'],outfile:'site/bundle.js',legalComments:'inline'});
+let html=await fs.readFile('site/index.html','utf8');
+html=html.replace(/<script type="importmap">[\s\S]*?<\/script>/,'').replace(/<script type="module">[\s\S]*?<\/script>/,'<script src="./bundle.js"></script>');
+await fs.writeFile('site/index.html',html);
+const css=await fs.readFile('site/style.css','utf8'),js=await fs.readFile('site/bundle.js','utf8');
+const standalone=html.replace('<link rel="stylesheet" href="./style.css">','<style>'+css+'</style>').replace('<script src="./bundle.js"></script>',()=>'<script>'+js.replace(/<\/script/gi,'<\\/script')+'</script>');
+await fs.writeFile('site/standalone.html',standalone);
+await fs.copyFile('node_modules/three/LICENSE','THREE-LICENSE.txt');
+console.log('Created bundled and single-file offline pages. No fonts or reference assets were copied.');
