@@ -3,7 +3,7 @@
 .journey-controls{background:none;border:0;backdrop-filter:none;padding:0;justify-content:space-between;gap:12px}
 .journey-controls button{border:1px solid #ffffff35;background:#121520a6;backdrop-filter:blur(12px);font-size:11px;padding:12px 18px}
 .journey-actions{display:flex;gap:8px;align-items:center}.journey-top{display:none}.journey-playing .edition{opacity:0}.journey-title p{color:#615e70}.journey-playing .header{mix-blend-mode:difference;color:#fff}
-.view-dormant{position:fixed!important;left:0;right:0;visibility:hidden!important;pointer-events:none!important}
+.view-dormant{position:fixed!important;top:-100000px!important;left:0;right:0;visibility:hidden!important;pointer-events:none!important}
 #journey-veil{position:fixed;inset:0;z-index:100;background:#eeeff3;pointer-events:auto;opacity:0}
 .arrival-page{background:#080b13;color:#f3f3f0}
 .arrival{position:relative;isolation:isolate;min-height:100svh;min-height:100dvh;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;background:radial-gradient(ellipse at 72% 44%,#222950 0%,#0e1222 38%,#080b13 75%);color:#eeeee9;padding:35px 5% 28px}
@@ -18,3 +18,8 @@
 @media(max-width:767px){.journey-controls button{font-size:10px;padding:12px}.journey-actions{gap:6px}.arrival{padding:max(25px,env(safe-area-inset-top)) 6% max(22px,env(safe-area-inset-bottom))}.arrival-header{font-size:8px}.arrival-header .arrival-coordinates{max-width:130px;text-align:right;line-height:1.6}.arrival h1{font-size:clamp(60px,15vw,108px);line-height:.97}.arrival-kicker{font-size:9px;margin-bottom:25px}.arrival-copy{font-size:13px;max-width:220px;margin-top:26px}.arrival-composition{padding:45px 0}.arrival-orbit{width:120vw;height:120vw;right:-75%;top:37%}.arrival-footer{display:block;padding-top:20px}.arrival-footer p{font-size:8px;margin-bottom:19px}.arrival-buttons{gap:8px}.arrival-buttons button{font-size:11px;padding:15px 17px;gap:17px}}
 @media(max-height:500px) and (orientation:landscape){.arrival{padding:20px 5%}.arrival-composition{padding:20px 0}.arrival-kicker{margin-bottom:15px}.arrival h1{font-size:57px}.arrival-copy{position:absolute;left:58%;bottom:25%;font-size:12px}.arrival-footer{padding-top:14px}.arrival-buttons button{padding:12px 20px}.arrival-orbit{height:90vh;width:90vh;right:1%}}
 @media(prefers-reduced-motion:reduce){.arrival:not([hidden]) .arrival-composition{animation:none}}
+/* Keep the journey aligned with the actual browser viewport, including toolbar changes. */
+.journey-sticky{height:100vh;height:100dvh}
+html:has(body.arrival-page){overflow:hidden;scroll-behavior:auto}
+body.arrival-page{height:100vh;height:100dvh;overflow:hidden}
+.arrival{height:100vh;height:100dvh;min-height:0;overflow-y:auto}
