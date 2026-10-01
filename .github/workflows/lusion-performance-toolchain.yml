@@ -1,0 +1,27 @@
+name: Motion lab profiling toolchain
+on:
+  push:
+    branches: [preview/lusion-lab-20261001]
+    paths: [.github/workflows/lusion-performance-toolchain.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Collect pinned public tools without project secrets
+        run: |
+          mkdir -p "$RUNNER_TEMP/motion-tools"
+          cd "$RUNNER_TEMP/motion-tools"
+          npm init -y
+          npm install --save-exact --no-fund three@0.180.0 esbuild@0.25.10 @playwright/test@1.56.1 pngjs@7.0.0
+          tar -czf "$GITHUB_WORKSPACE/motion-tools.tgz" node_modules package.json package-lock.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: motion-profiling-tools
+          path: motion-tools.tgz
+          retention-days: 1
