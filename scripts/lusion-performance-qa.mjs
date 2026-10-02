@@ -22,7 +22,10 @@ try{
  await check('Reverse input remains authoritative during visual smoothing',async()=>{await page.mouse.wheel(0,-180);await page.waitForFunction(()=>window.__journeyPlayer.reverse&&!window.__journeyPlayer.auto);await page.waitForTimeout(300);const s=(await read()).journey;assert(Math.abs(s.renderProgress-s.progress)<.002);assert(!s.auto);});
  await check('Portrait, tablet, narrow phone and landscape viewports do not clip the ending',async()=>{
   for(const [width,height] of [[320,568],[390,844],[768,1024],[844,390],[1440,900]]){
-   await page.setViewportSize({width,height});await page.waitForTimeout(220);await seek(1);
+   await page.setViewportSize({width,height});
+   // Wait for actual controller + canvas resize, not an arbitrary 220ms delay.
+   await page.waitForFunction(({width,height})=>{const p=window.__journeyPlayer,s=document.querySelector('#tunnel-stage canvas').getBoundingClientRect();return !p.resizing&&Math.abs(p.telemetry.height-height)<1&&Math.abs(s.width-width)<1&&Math.abs(s.height-height)<1;},{width,height});
+   await seek(1);
    const box=await page.evaluate(()=>{const a=document.querySelector('#arrival'),f=a.querySelector('.arrival-footer'),title=a.querySelector('h1'),s=document.querySelector('.journey-sticky'),c=document.querySelector('#tunnel-stage canvas');const r=e=>{const x=e.getBoundingClientRect();return {left:x.left,top:x.top,right:x.right,bottom:x.bottom,width:x.width,height:x.height};};return {viewport:[innerWidth,innerHeight],body:document.documentElement.scrollWidth,arrival:r(a),footer:r(f),title:r(title),stage:r(s),canvas:r(c)};});
    assert(box.body<=width+1);assert(box.footer.bottom<=height+1);assert(box.footer.top>=0);assert(box.title.top>=-1);assert(box.title.bottom<=box.footer.top+1);assert(Math.abs(box.stage.height-height)<=1);assert(Math.abs(box.canvas.width-width)<=1);samples.push({name:'viewport',...box});
   }
