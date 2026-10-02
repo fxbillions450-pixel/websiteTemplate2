@@ -26,10 +26,10 @@
  #arrival .arrival-copy{display:none}
  #arrival .arrival-footer p{font-size:8px;letter-spacing:.03em}
  .continuation{padding:8svh 6% 25px;min-height:190svh}
- .continuation-heading{max-width:82%;padding-top:5svh}
- .continuation h2{font-size:clamp(47px,12vw,74px)}
- .continuation-intro{font-size:15px;max-width:65%}
- .continuation-body{max-width:67%;margin:22svh 0 16svh}.continuation-body p{font-size:14px}
+ .continuation-heading{max-width:52%;padding-top:5svh}
+ .continuation h2{font-size:clamp(29px,8.5vw,64px)}
+ .continuation-intro{font-size:15px;max-width:100%}
+ .continuation-body{max-width:56%;margin:22svh 0 16svh}.continuation-body p{font-size:14px}
  .continuation-footer{font-size:8px;gap:16px}
 }
 @media(max-height:500px) and (orientation:landscape){

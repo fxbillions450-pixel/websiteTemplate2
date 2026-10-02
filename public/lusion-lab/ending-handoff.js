@@ -9,7 +9,7 @@ export function endingPose(width,height,postViewport=0){
  const portrait=width/height<.85, smallLandscape=height<500&&width>height;
  const drift=smooth((postViewport-.1)/1.25);
  return {
-  x:portrait ? .50+.28*drift : .71+.09*drift,
+  x:portrait ? .50+.29*smooth((postViewport-.1)/.5) : .71+.09*drift,
   y:portrait ? .63-.12*drift : .53-.03*drift,
   scale:(portrait?.82:smallLandscape?.87:1.1)*(1-.20*drift)
  };
