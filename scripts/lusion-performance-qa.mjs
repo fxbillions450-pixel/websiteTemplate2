@@ -2,14 +2,14 @@ import {chromium,webkit,devices} from '@playwright/test';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const label=process.env.LAB_ENGINE||'desktop', engine=label==='webkit'?webkit:chromium;
-const browser=await engine.launch(label==='webkit'?{}:{args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser=await engine.launch(label==='webkit'?{}:{...(process.env.LAB_CHROMIUM?{executablePath:process.env.LAB_CHROMIUM}:{}),args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 const context=await browser.newContext({...(label==='mobile'?devices['Pixel 7']:{}),viewport:label==='desktop'?{width:1280,height:800}:{width:390,height:844},deviceScaleFactor:1,reducedMotion:'no-preference'});
 const page=await context.newPage();page.setDefaultTimeout(20000);
 const errors=[],checks=[],samples=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
 await fs.mkdir('evidence/performance',{recursive:true});
 async function check(name,fn){try{await fn();checks.push({name,pass:true});console.log('PASS',label,name);}catch(e){checks.push({name,pass:false,error:e.message});throw e;}}
 const read=()=>page.evaluate(()=>({journey:window.__journeyPlayer,graphics:window.__motionLab.performance}));
-const seek=async p=>{await page.evaluate(p=>{dispatchEvent(new WheelEvent('wheel',{deltaY:-1}));const j=document.querySelector('#journey'),h=document.querySelector('.journey-sticky').clientHeight;scrollTo({top:j.offsetTop+p*(j.offsetHeight-h),behavior:'instant'});},p);await page.waitForFunction(p=>Math.abs(window.__motionLab.progress-p)<.0005,p);await page.waitForTimeout(300);};
+const seek=async p=>{await page.evaluate(p=>{dispatchEvent(new WheelEvent('wheel',{deltaY:-1}));const j=document.querySelector('#journey'),h=document.querySelector('.journey-sticky').clientHeight;scrollTo({top:j.offsetTop+p*(document.querySelector('#journey-range').offsetHeight-h),behavior:'instant'});},p);await page.waitForFunction(p=>Math.abs(window.__motionLab.progress-p)<.0005,p);await page.waitForTimeout(300);};
 try{
  await page.goto(process.env.LAB_URL||'http://127.0.0.1:4173/',{waitUntil:'load'});
  await check('Precompiled hero starts without shader exceptions',async()=>{await page.waitForFunction(()=>window.__motionLab?.ready['hero-stage']);assert.equal(await page.evaluate(()=>window.__motionLab.version),'lusion-lab-fluidity-003');});

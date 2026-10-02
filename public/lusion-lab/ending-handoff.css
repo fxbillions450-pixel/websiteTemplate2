@@ -1,0 +1,43 @@
+/* Character-to-document handoff. The 700svh cinematic range stays unchanged;
+   following content extends the SAME sticky context, without a fixed layer. */
+#journey{height:auto;isolation:isolate;--ending-dark:0}
+#journey>.journey-sticky{margin-bottom:-100vh;margin-bottom:-100dvh;z-index:2;pointer-events:none}
+#journey-range{position:relative;height:700svh;pointer-events:none}
+.ending-backdrop{position:absolute;inset:0;z-index:0;pointer-events:none;opacity:var(--ending-dark);background:radial-gradient(ellipse at 70% 42%,#222950 0%,#0e1222 38%,#080b13 75%)}
+#tunnel-stage{z-index:2;background:transparent}
+#aperture-mask,.journey-title{z-index:4}
+#arrival{z-index:0;background:transparent;will-change:transform,opacity}
+#arrival:before{display:none}
+#arrival .arrival-composition{width:52%;padding:35px 0}
+#arrival h1{font-size:clamp(64px,8.5vw,142px)}
+#arrival .arrival-footer{align-items:center}
+.continuation{position:relative;z-index:1;min-height:195svh;color:#eeeee9;padding:10svh 7% 30px;display:flex;flex-direction:column;justify-content:space-between;overflow:clip}
+.continuation-heading{max-width:56%;padding-top:7svh}
+.continuation h2{font-size:clamp(58px,8vw,132px);line-height:.94;letter-spacing:-.065em;margin:28px 0}
+.continuation-intro{font-size:clamp(15px,1.6vw,23px);line-height:1.6;color:#a8adc0;margin:30px 0}
+.continuation-body{max-width:47%;border-top:1px solid #ffffff30;padding-top:30px;margin:12svh 0;color:#a8adc0}
+.continuation-body p{font-size:clamp(15px,1.5vw,20px);line-height:1.7;margin-bottom:24px}.continuation-body .eyebrow{font-size:10px;color:#d2d6ed;letter-spacing:.1em}
+.continuation-footer{border-top:1px solid #ffffff24;display:flex;justify-content:space-between;align-items:center;gap:24px;padding-top:25px;font-size:10px;color:#9b9eb2;letter-spacing:.06em}
+.continuation-footer>span:first-child{font-size:22px;letter-spacing:-1px;color:#eeeee9}.continuation-footer strong{font-weight:400;color:#aaaac1}
+@media(max-aspect-ratio:17/20){
+ #arrival .arrival-composition{width:100%;justify-content:flex-start;padding-top:6svh}
+ #arrival .arrival-kicker{margin-bottom:18px}
+ #arrival h1{font-size:clamp(54px,15vw,80px);line-height:.91}
+ #arrival .arrival-copy{display:none}
+ #arrival .arrival-footer p{font-size:8px;letter-spacing:.03em}
+ .continuation{padding:8svh 6% 25px;min-height:190svh}
+ .continuation-heading{max-width:82%;padding-top:5svh}
+ .continuation h2{font-size:clamp(47px,12vw,74px)}
+ .continuation-intro{font-size:15px;max-width:65%}
+ .continuation-body{max-width:67%;margin:22svh 0 16svh}.continuation-body p{font-size:14px}
+ .continuation-footer{font-size:8px;gap:16px}
+}
+@media(max-height:500px) and (orientation:landscape){
+ #arrival .arrival-composition{padding:15px 0;width:50%}#arrival .arrival-copy{display:none}#arrival h1{font-size:55px}#arrival .arrival-kicker{margin-bottom:14px}
+ .continuation{min-height:240svh}.continuation h2{font-size:57px}.continuation-body{max-width:54%;margin:20svh 0}
+}
+@media(prefers-reduced-motion:reduce){#arrival{will-change:auto}}
+
+#tunnel-stage.error{opacity:calc(1 - var(--ending-dark,0));background:transparent}
+
+.page-footer{min-height:100svh;background:#080b13;color:#eeeee9;padding:12svh 7% 30px;display:flex;flex-direction:column;justify-content:space-between;gap:35px}.page-footer h2{font-size:clamp(64px,12vw,165px);line-height:.9;letter-spacing:-.065em}.page-footer .eyebrow{color:#a8adc0}.page-footer .continuation-footer{margin-top:8svh}

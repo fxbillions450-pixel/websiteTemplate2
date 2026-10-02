@@ -12,8 +12,8 @@
   const clamp = (n, min = 0, max = 1) => Math.min(max, Math.max(min, n));
   const smooth = n => { n = clamp(n); return n * n * (3 - 2 * n); };
   const preference = matchMedia('(prefers-reduced-motion: reduce)');
-  const data = { version: 'journey-fluid-003', duration: 18, playbackRate: 1,
-    mode: 'before', progress: 0, renderProgress: 0, starts: 0, auto: false,
+  const data = { version: 'journey-emergence-001', duration: 18, playbackRate: 1,
+    mode: 'before', progress: 0, renderProgress: 0, postScroll: 0, postViewport: 0, starts: 0, auto: false,
     reverse: false, fullyVisible: false, elapsed: 0 };
   window.__journeyPlayer = data;
   let top = 0, span = 1, height = 1, cursor = scrollY, lastWritten = scrollY;
@@ -21,7 +21,7 @@
   let touching = false, fingerY = 0, pointerActive = false, layoutDirty = true;
   let attached = false, fallbackFrame = null, previousY = scrollY, previousFull = false;
   let wasSuspended = true, lastUI = '', resizing = false;
-  let lastEnding = -1, lastHeader = -1, lastFull = null;
+  let lastEnding = -1, lastHeader = -1, lastFull = null, lastDark = -1, lastPost = -1;
   let visualProgress = 0, smoothingTime = null;
   const round = n => Math.round(n * 100000) / 100000;
   const hasDialog = () => Boolean(menuElement?.open || detailElement?.open);
@@ -34,12 +34,12 @@
     lastWritten = scrollY;
   };
   function measure(preserve = false) {
-    const p = data.progress, oldTop = top, oldSpan = span;
+    const p = data.progress, post = data.postViewport, oldTop = top, oldSpan = span;
     top = journey.getBoundingClientRect().top + scrollY;
     height = sticky.clientHeight;
-    span = Math.max(1, journey.offsetHeight - height);
+    span = Math.max(1, $('#journey-range').offsetHeight - height);
     if (preserve && oldSpan > 1 && p > 0 && previousY >= oldTop - 1) {
-      write(top + p * span);
+      write(top + p * span + (p >= 1 ? post * height : 0));
       previousY = scrollY;
     }
     layoutDirty = false;
@@ -95,19 +95,24 @@
     data.auto = false; reverse = false; armed = true; lastTime = null;
   }));
   function updateUI(p) {
-    const ending = round(smooth((p - .91) / .09));
+    const ending = round(smooth((p - .91) / .09) * (1 - smooth(data.postViewport / .8)));
+    const dark = round(smooth((p - .86) / .07));
+    if (dark !== lastDark) { lastDark = dark; journey.style.setProperty('--ending-dark', String(dark)); }
+    const postY = Math.min(data.postScroll, height);
+    if (postY !== lastPost) { lastPost = postY; arrival.style.transform = `translateY(${-postY}px)`; }
     if (ending !== lastEnding) { lastEnding = ending;
     arrival.style.opacity = String(ending);
     arrival.style.visibility = ending > 0 ? 'visible' : 'hidden';
     arrival.style.setProperty('--arrival-reveal', String(ending)); }
-    const key = String(p > .97);
-    if (key !== lastUI) { lastUI = key; arrival.setAttribute('aria-hidden', String(p <= .97)); }
+    const key = String(p > .97 && data.postViewport < .8);
+    if (key !== lastUI) { lastUI = key; arrival.setAttribute('aria-hidden', String(p <= .97 || data.postViewport >= .8)); }
     // Fade over scroll distance, not a CSS mode change that repositions the stage.
     const headerFade = round(1 - smooth((scrollY - top + height * .18) / (height * .18)));
     if (headerFade !== lastHeader) { lastHeader = headerFade;
     document.documentElement.style.setProperty('--journey-header-opacity', String(headerFade)); }
-    if (lastFull !== data.fullyVisible) { lastFull = data.fullyVisible;
-    document.body.classList.toggle('journey-full', data.fullyVisible); }
+    const hideHeader = data.fullyVisible || (data.progress >= 1 && data.postViewport < 2.5);
+    if (lastFull !== hideHeader) { lastFull = hideHeader;
+    document.body.classList.toggle('journey-full', hideHeader); }
   }
   function step(time) {
     if (resizing) { lastTime = time; return; }
@@ -144,6 +149,8 @@
     let p = clamp((y - top) / span);
     if (y >= top + span - 1) p = 1;
     data.progress = p;
+    data.postScroll = Math.max(0, y - top - span);
+    data.postViewport = data.postScroll / Math.max(1, height);
     // Autoplay uses its fractional cursor directly. Manual wheel steps get a
     // short, frame-rate-independent visual catch-up; input itself is never delayed.
     const visualDt = smoothingTime === null ? 1 : Math.max(0,(time-smoothingTime)/1000);
@@ -164,11 +171,11 @@
   function fallback(time) { step(time); if (!attached) fallbackFrame = requestAnimationFrame(fallback); }
   function resize() {
     if (resizing) return;
-    const p = data.progress, preserve = previousY >= top - 1 && p > 0;
+    const p = data.progress, post = data.postViewport, preserve = previousY >= top - 1 && p > 0;
     resizing = true;
     requestAnimationFrame(() => {
       measure();
-      if (preserve) { write(top + p * span); previousY = scrollY; data.progress = data.renderProgress = visualProgress = p; }
+      if (preserve) { write(top + p * span + (p >= 1 ? post * height : 0)); previousY = scrollY; data.progress = data.renderProgress = visualProgress = p; }
       lastTime = null; resizing = false;
     });
   }
@@ -178,7 +185,7 @@
     if(Math.abs((window.visualViewport?.scale||1)-1)<.01) resize();
   }, { passive: true });
   const observer = new ResizeObserver(() => { layoutDirty = true; });
-  observer.observe(journey); observer.observe(sticky);
+  observer.observe(journey); observer.observe(sticky); observer.observe($('#journey-range'));
   for(const id of ['#interaction','#depth']){const element=$(id);if(element)observer.observe(element);}
   document.addEventListener('visibilitychange', () => { lastTime = null; wasSuspended = true; });
   preference.addEventListener('change', () => { data.auto = false; lastTime = null; });

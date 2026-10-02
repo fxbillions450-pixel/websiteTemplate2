@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {PNG} from 'pngjs';
 const label=process.env.LAB_ENGINE||'desktop', engine=label==='webkit'?webkit:chromium;
 const out='evidence';await fs.mkdir(out,{recursive:true});
-const browser=await engine.launch(label==='webkit'?{}:{args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser=await engine.launch(label==='webkit'?{}:{...(process.env.LAB_CHROMIUM?{executablePath:process.env.LAB_CHROMIUM}:{}),args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 const options=label==='desktop'?{viewport:{width:1280,height:800}}:{...(label==='mobile'?devices['Pixel 7']:{}),viewport:{width:390,height:844},deviceScaleFactor:1};
 const context=await browser.newContext({...options,reducedMotion:'no-preference'});
 const page=await context.newPage();page.setDefaultTimeout(18000);
@@ -13,7 +13,7 @@ const url=process.env.LAB_URL||'http://127.0.0.1:4173/';
 const state=()=>page.evaluate(()=>({...window.__journeyPlayer,graphics:window.__motionLab?.progress}));
 const snap=async name=>page.screenshot({path:`${out}/${label}-${name}.png`,timeout:30000});
 async function check(name,fn){try{await fn();checks.push({name,pass:true});console.log('PASS',label,name);}catch(e){checks.push({name,pass:false,error:e.message});console.error('FAIL',label,name,e.message);throw e;}}
-const position=async p=>page.evaluate(p=>{const e=document.querySelector('#journey'),h=document.querySelector('.journey-sticky').clientHeight;window.scrollTo({top:e.offsetTop+p*(e.offsetHeight-h),behavior:'instant'});},p);
+const position=async p=>page.evaluate(p=>{const e=document.querySelector('#journey'),h=document.querySelector('.journey-sticky').clientHeight;window.scrollTo({top:e.offsetTop+p*(document.querySelector('#journey-range').offsetHeight-h),behavior:'instant'});},p);
 function variance(buffer){const p=PNG.sync.read(buffer);let min=255,max=0;for(let n=0;n<p.data.length;n+=128){const v=p.data[n];min=Math.min(min,v);max=Math.max(max,v);}return max-min;}
 try {
  await page.goto(url,{waitUntil:'load'});

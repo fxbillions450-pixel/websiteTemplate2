@@ -6,7 +6,7 @@ let html = await fs.readFile('site/index.html','utf8');
 html = html.replace(/<script type="importmap">[\s\S]*?<\/script>/,'').replace(/<script type="module">[\s\S]*?<\/script>/,'<script src="./bundle.js"></script>');
 await fs.writeFile('site/index.html',html);
 let standalone = html;
-for (const f of ['style.css','journey-player.css']) {
+for (const f of ['style.css','journey-player.css','ending-handoff.css']) {
  const css = await fs.readFile('site/'+f,'utf8');
  standalone = standalone.replace(new RegExp('<link\\b[^>]*href="\\./'+f.replace('.','\\.')+'"[^>]*>'),()=>'<style>'+css+'</style>');
 }

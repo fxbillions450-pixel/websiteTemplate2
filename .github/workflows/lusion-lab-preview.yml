@@ -29,7 +29,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/lusion-lab/site"
           cp -r public/lusion-lab/* "$RUNNER_TEMP/lusion-lab/site/"
-          cp scripts/lusion-lab-build.mjs scripts/lusion-lab-qa.mjs scripts/lusion-performance-unit.mjs scripts/lusion-performance-qa.mjs "$RUNNER_TEMP/lusion-lab/"
+          cp scripts/lusion-lab-build.mjs scripts/lusion-lab-qa.mjs scripts/lusion-performance-unit.mjs scripts/lusion-performance-qa.mjs scripts/lusion-ending-qa.mjs "$RUNNER_TEMP/lusion-lab/"
           cd "$RUNNER_TEMP/lusion-lab"
           npm init -y
           timeout 150s npm install --save-exact --no-fund three@0.180.0 esbuild@0.25.10 @playwright/test@1.56.1 pngjs@7.0.0
@@ -39,19 +39,12 @@ jobs:
           node lusion-lab-build.mjs
           python3 -m http.server 4173 --bind 127.0.0.1 --directory site > server.log 2>&1 &
           sleep 2
-      - name: Inspect browser output with agent-browser
-        if: matrix.engine == 'desktop'
-        continue-on-error: true
-        run: |
-          cd "$RUNNER_TEMP/lusion-lab"
-          export AGENT_BROWSER_EXECUTABLE_PATH="$(node -p "require('@playwright/test').chromium.executablePath()")"
-          timeout 45s npx --yes agent-browser --session lusion-lab open http://127.0.0.1:4173/
-          timeout 15s npx --yes agent-browser --session lusion-lab snapshot -i > agent-browser-snapshot.txt
-          timeout 15s npx --yes agent-browser --session lusion-lab screenshot agent-browser-preview.png
-          timeout 10s npx --yes agent-browser --session lusion-lab close
       - name: Runtime budget and GPU transform invariants
         run: cd "$RUNNER_TEMP/lusion-lab" && node lusion-performance-unit.mjs
+      - name: Character emergence, pause, continued native scroll and reversal
+        run: cd "$RUNNER_TEMP/lusion-lab" && timeout 180s node lusion-ending-qa.mjs
       - name: Full hands-free journey and interaction regression tests
+        if: always()
         run: cd "$RUNNER_TEMP/lusion-lab" && timeout 360s node lusion-lab-qa.mjs
       - name: Rendering and responsive viewport checks
         if: always()
@@ -65,11 +58,11 @@ jobs:
           dest=pathlib.Path(os.environ['GITHUB_WORKSPACE'])/'lusion-preview-evidence'
           dest.mkdir(exist_ok=True)
           with zipfile.ZipFile(dest/'lusion-motion-lab.zip','w',zipfile.ZIP_DEFLATED) as z:
-            for name in ['site','lusion-lab-build.mjs','lusion-lab-qa.mjs','lusion-performance-unit.mjs','lusion-performance-qa.mjs','package.json','package-lock.json','THREE-LICENSE.txt']:
+            for name in ['site','lusion-lab-build.mjs','lusion-lab-qa.mjs','lusion-performance-unit.mjs','lusion-performance-qa.mjs','lusion-ending-qa.mjs','package.json','package-lock.json','THREE-LICENSE.txt']:
               p=pathlib.Path(name)
               for f in ([p] if p.is_file() else p.rglob('*')):
                 if f.is_file():z.write(f,str(f))
-          for name in ['evidence','agent-browser-snapshot.txt','agent-browser-preview.png','server.log']:
+          for name in ['evidence','server.log']:
             p=pathlib.Path(name)
             if p.is_dir():shutil.copytree(p,dest/p.name,dirs_exist_ok=True)
             elif p.is_file():shutil.copy2(p,dest/p.name)

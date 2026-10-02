@@ -1,5 +1,6 @@
 import * as T from 'three';
 import {FrameBudget, createTunnelTiles} from './motion-runtime.js';
+import {composeEmergence, endingPose} from './ending-handoff.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 const $=s=>document.querySelector(s),clamp=(n,a=0,b=1)=>Math.min(b,Math.max(a,n)),mix=(a,b,t)=>a+(b-a)*t,smooth=(a,b,n)=>{const p=clamp((n-a)/(b-a));return p*p*(3-2*p);};
@@ -7,11 +8,11 @@ const seedRandom=seed=>()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^
 const rand=seedRandom(126);let reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,paused=reduced,slow=false,visualTime=0,last=0,raf=0;
 const scenes=[],renderers=[];const state={version:'lusion-lab-fluidity-003',palette:0,phase:'portal',progress:0,ready:{},errors:[],performance:{stages:{},frames:0}};window.__motionLab=state;
 function fail(host,e){state.errors.push(String(e));host.classList.add('error');host.querySelector('.stage-loading').textContent='This scene needs WebGL. Try an up-to-date browser with graphics acceleration enabled.';console.error(e);}
-function createStage(host,bg='#111219',fov=36){
+function createStage(host,bg='#111219',fov=36,alpha=false){
  if(new URLSearchParams(location.search).has('no-webgl'))throw new Error('Intentional no-WebGL fallback test');
  const coarse=matchMedia('(pointer:coarse)').matches;
  const budget=new FrameBudget(Math.min(devicePixelRatio||1,coarse?1.35:1.7));
- const renderer=new T.WebGLRenderer({antialias:true,alpha:false,powerPreference:coarse?'default':'high-performance'});
+ const renderer=new T.WebGLRenderer({antialias:true,alpha,powerPreference:coarse?'default':'high-performance'});
  renderer.setPixelRatio(budget.ratio);renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=T.SRGBColorSpace;host.prepend(renderer.domElement);renderers.push(renderer);
  const scene=new T.Scene();scene.background=new T.Color(bg);const camera=new T.PerspectiveCamera(fov,1,.1,180);camera.position.set(0,0,12);
  const envScene=new RoomEnvironment(),pmrem=new T.PMREMGenerator(renderer),environment=pmrem.fromScene(envScene,.035);scene.environment=environment.texture;envScene.dispose();pmrem.dispose();
@@ -23,7 +24,7 @@ function createStage(host,bg='#111219',fov=36){
  resizeForFrame();
  renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();fail(host,'Graphics context lost. Reload to restart the scene.');});
  return {host,renderer,scene,camera,key,rim,resizeForFrame,budget,stats,
-  render(){if(disposed)return;renderer.render(scene,camera);dirty=false;stats.renders++;stats.draws=renderer.info.render.calls;stats.triangles=renderer.info.render.triangles;},
+  render(draw){if(disposed)return;renderer.info.autoReset=false;renderer.info.reset();if(draw)draw();else renderer.render(scene,camera);dirty=false;stats.renders++;stats.draws=renderer.info.render.calls;stats.triangles=renderer.info.render.triangles;},
   sampleFrame(ms){if(budget.sample(ms)){renderer.setPixelRatio(budget.ratio);dirty=true;stats.pixelRatio=budget.ratio;}stats.frameMs=budget.ema;},
   get dirty(){return dirty},get width(){return width},get height(){return height},
   dispose(){disposed=true;observer.disconnect();environment.dispose();renderer.dispose();}};
@@ -122,25 +123,32 @@ function astronaut(){
  const root=new T.Group(),suit=new T.MeshStandardMaterial({color:'#eeede8',roughness:.48}),joints=new T.MeshStandardMaterial({color:'#20212b',roughness:.6}),visor=new T.MeshPhysicalMaterial({color:'#030610',metalness:.85,roughness:.1,clearcoat:1}),trim=new T.MeshStandardMaterial({color:'#2421cf',roughness:.35});
  const part=(parent,geo,mat,xyz,scale)=>{const m=new T.Mesh(geo,mat);m.position.set(...xyz);if(scale)m.scale.set(...scale);parent.add(m);return m;};
  part(root,new T.CapsuleGeometry(.38,.66,6,16),suit,[0,0,0],[1,1,.74]);part(root,new T.BoxGeometry(.64,.88,.33),joints,[0,.1,-.37]);part(root,new T.BoxGeometry(.38,.24,.08),trim,[0,.2,.31]);
- part(root,new T.SphereGeometry(.43,28,20),suit,[0,.86,0]);part(root,new T.SphereGeometry(.345,28,20),visor,[0,.89,.215],[1,.77,.6]);
+ part(root,new T.SphereGeometry(.43,28,20),suit,[0,.86,0]);part(root,new T.SphereGeometry(.345,28,20),visor,[0,.89,.32],[1,.77,.6]);
  const limbs=[];for(const side of [-1,1]){const arm=new T.Group();arm.position.set(side*.44,.35,0);root.add(arm);part(arm,new T.CapsuleGeometry(.145,.55,5,14),suit,[0,-.28,0]);part(arm,new T.SphereGeometry(.16,16,12),joints,[0,-.65,0]);part(arm,new T.CapsuleGeometry(.14,.38,5,14),suit,[0,-.9,.1]);part(arm,new T.SphereGeometry(.16,16,12),suit,[0,-1.19,.16]);limbs.push(arm);
  const leg=new T.Group();leg.position.set(side*.24,-.55,0);root.add(leg);part(leg,new T.CapsuleGeometry(.18,.65,6,16),suit,[0,-.45,0]);part(leg,new T.CapsuleGeometry(.19,.2,5,14),joints,[0,-.94,.12],[1,.8,1.4]);limbs.push(leg);}
- return {root,pose(p,t){root.rotation.set(.12+Math.sin(p*6)*.12,.2+Math.sin(p*4)*.45,Math.sin(p*7)*.2);limbs[0].rotation.z=-.8+Math.sin(p*9)*.15;limbs[2].rotation.z=.65+Math.sin(p*9)*.15;limbs[1].rotation.z=-.1;limbs[3].rotation.z=.16;limbs[1].rotation.x=.25+Math.sin(p*7)*.12;limbs[3].rotation.x=-.15;root.position.y=-.25+Math.sin(t*.5)*.07;}};
+ return {root,pose(p,t,settle=0){root.rotation.set(.12+Math.sin(p*6)*.12,.2+Math.sin(p*4)*.45,Math.sin(p*7)*.2);limbs[0].rotation.z=-.8+Math.sin(p*9)*.15;limbs[2].rotation.z=.65+Math.sin(p*9)*.15;limbs[1].rotation.z=-.1;limbs[3].rotation.z=.16;limbs[1].rotation.x=.25+Math.sin(p*7)*.12;limbs[3].rotation.x=-.15;root.position.y=-.25+Math.sin(t*.5)*.07;
+  root.rotation.x*=1-settle;root.rotation.y*=1-settle;root.rotation.z*=1-settle;
+  limbs[0].rotation.z=mix(limbs[0].rotation.z,-.10,settle);limbs[2].rotation.z=mix(limbs[2].rotation.z,.10,settle);
+  limbs[1].rotation.x*=1-settle;limbs[3].rotation.x*=1-settle;
+ }};
 }
 let seekJourney=()=>{};
 function tunnel(host){
- const s=createStage(host,'#08090e',49);s.camera.position.set(0,0,11);s.camera.lookAt(0,0,-40);s.scene.fog=new T.FogExp2('#090a11',.024);
+ const s=createStage(host,'#08090e',49,true);s.camera.position.set(0,0,11);s.camera.lookAt(0,0,-40);s.scene.fog=new T.FogExp2('#090a11',.024);
  s.key.intensity=3;const mat=new T.MeshStandardMaterial({color:'#171925',metalness:.62,roughness:.37}),lightMat=new T.MeshBasicMaterial({color:'#b7b5ef'});
- const tiles=createTunnelTiles(T,s.scene,mat,lightMat);
+ const backdrop=new T.Group();s.scene.add(backdrop);
+ const tiles=createTunnelTiles(T,backdrop,mat,lightMat);
  const explorer=astronaut();s.scene.add(explorer.root);
  const shardShape=new T.Shape();shardShape.moveTo(-.5,-.36);shardShape.lineTo(.56,-.25);shardShape.lineTo(-.12,.62);shardShape.closePath();const shardGeo=new T.ExtrudeGeometry(shardShape,{depth:.025,bevelEnabled:false});
  const shardMat=new T.MeshPhysicalMaterial({color:'#e4f4ff',metalness:.25,roughness:.07,transparent:true,opacity:.5,side:T.DoubleSide,clearcoat:1,depthWrite:false}),shardCount=170,glass=new T.InstancedMesh(shardGeo,shardMat,shardCount);glass.frustumCulled=false;glass.instanceMatrix.setUsage(T.DynamicDrawUsage);s.scene.add(glass);
  const rng=seedRandom(735),shards=Array.from({length:shardCount},()=>({x:(rng()-.5)*10,y:(rng()-.5)*8,z:rng(),rx:rng()*6,ry:rng()*6,size:.32+rng()*.55,delay:rng()*.17}));const dummy=new T.Object3D();const journey=$('#journey'),sticky=$('.journey-sticky');let top=0,length=1,p=0,lastWidth=0;
- const measure=()=>{top=journey.getBoundingClientRect().top+scrollY;length=Math.max(1,journey.offsetHeight-sticky.offsetHeight);};measure();const ro=new ResizeObserver(measure);ro.observe(journey);window.addEventListener('resize',measure);
+ const measure=()=>{top=journey.getBoundingClientRect().top+scrollY;length=Math.max(1,document.querySelector('#journey-range').offsetHeight-sticky.offsetHeight);};measure();const ro=new ResizeObserver(measure);ro.observe(journey);window.addEventListener('resize',measure);
  seekJourney=value=>{measure();window.scrollTo({top:top+clamp(value)*length,behavior:'instant'});};
  const title=$('.journey-title'),mask=$('#aperture-mask'),phaseLabel=$('#phase-name');
  const darkBg=new T.Color('#080910'),lightBg=new T.Color('#eeeff3'),darkWall=new T.Color('#171b2a'),lightWall=new T.Color('#eeeef2'),darkLight=new T.Color('#8e91fa'),white=new T.Color('#ffffff');
- let target=0,lastP=-1,lastPhase='',lastEntry=-1;return {...s,tick(dt,time){if(lastWidth!==s.width){measure();lastWidth=s.width;}target=window.__journeyPlayer?.renderProgress??clamp((scrollY-top)/length);p=target;state.progress=p;if(p===lastP&&!s.dirty)return;lastP=p;time=p*(window.__journeyPlayer?.duration??18);
+ const projected=new T.Vector3();
+ let target=0,lastP=-1,lastPost=-1,lastPhase='',lastEntry=-1;return {...s,tick(dt,time){if(lastWidth!==s.width){measure();lastWidth=s.width;}target=window.__journeyPlayer?.renderProgress??clamp((scrollY-top)/length);p=target;state.progress=p;const post=window.__journeyPlayer?.postViewport??0;
+  if(p===lastP&&post===lastPost&&!s.dirty)return;lastP=p;lastPost=post;time=p*(window.__journeyPlayer?.duration??18);
   const phase=p<.13?'portal':p<.55?'dark tunnel':p<.70?'fold':p<.87?'light tunnel':'glass / emergence';state.phase=phase;if(phase!==lastPhase){lastPhase=phase;phaseLabel.textContent=phase.toUpperCase()+' / 03';}
   const entry=smooth(0,.15,p),bright=smooth(.66,.82,p),exit=smooth(.88,1,p),fold=smooth(.48,.66,p)*(1-smooth(.71,.83,p));
   if(entry!==lastEntry||s.dirty){lastEntry=entry;title.style.opacity=String(1-smooth(.015,.08,p));title.style.transform=`translateY(${-entry*130}px) scale(${1+entry*.2})`;
@@ -148,9 +156,21 @@ function tunnel(host){
   s.scene.background.copy(darkBg).lerp(lightBg,bright);s.scene.fog.color.copy(s.scene.background);s.scene.fog.density=mix(.022,.031,bright);mat.color.copy(darkWall).lerp(lightWall,bright);mat.metalness=mix(.65,.05,bright);mat.roughness=mix(.36,.64,bright);lightMat.color.copy(darkLight).lerp(white,bright);
   s.key.intensity=mix(4.1,5.5,bright);const fov=mix(49,63,smooth(.08,.35,p))+fold*10;if(s.camera.fov!==fov){s.camera.fov=fov;s.camera.updateProjectionMatrix();}s.camera.rotation.z=fold*.30;
   const travel=p*83+time*.7,radius=mix(4.7,5.6,bright);tiles.update(p,travel,radius,fold,bright);
-  explorer.root.visible=p>.09;explorer.root.position.x=mix(.45,-.15,exit);explorer.root.position.z=mix(-12,6.6,exit);explorer.root.scale.setScalar(s.width<600?.7:1);explorer.pose(p,time);
-  glass.visible=p>.82;const fracture=smooth(.87,.98,p);glass.material.opacity=mix(.42,.08,exit);if(glass.visible){for(let i=0;i<shardCount;i++){const v=shards[i],f=smooth(v.delay,1,fracture);dummy.position.set(v.x*(1+f*2.8),v.y*(1+f*2.8)-f*f*2,3+v.z*.15+f*5);dummy.rotation.set(v.rx*f*1.5,v.ry*f*1.8,v.rx+f*3);dummy.scale.setScalar(v.size*(1-f*.2));dummy.updateMatrix();glass.setMatrixAt(i,dummy.matrix);}glass.instanceMatrix.needsUpdate=true;}
-  s.render();},dispose(){ro.disconnect();window.removeEventListener('resize',measure);tiles.dispose();s.scene.traverse(o=>{o.geometry?.dispose();if(o.material&&!Array.isArray(o.material))o.material.dispose();});s.dispose();}};
+  explorer.root.visible=p>.09;explorer.root.position.x=mix(.45,-.15,exit);explorer.root.position.z=mix(-12,6.6,exit);explorer.root.scale.setScalar(s.width<600?.7:1);const handoff=smooth(.87,1,p),pose=endingPose(s.width,s.height,post);
+  explorer.pose(p,time,handoff);
+  const finalZ=6.2,worldH=2*Math.tan(T.MathUtils.degToRad(s.camera.fov)/2)*(s.camera.position.z-finalZ);
+  explorer.root.position.x=mix(explorer.root.position.x,(pose.x-.5)*worldH*s.camera.aspect,handoff);
+  explorer.root.position.z=mix(explorer.root.position.z,finalZ,handoff);
+  explorer.root.scale.setScalar(mix(s.width<600?.7:1,pose.scale,handoff));
+  explorer.root.position.y=mix(explorer.root.position.y,(.5-pose.y)*worldH+.34*pose.scale,handoff);
+  s.key.intensity=mix(s.key.intensity,3.4,handoff);
+  glass.visible=p>.82;const fracture=smooth(.87,.98,p);glass.material.opacity=mix(.42,0,exit);if(glass.visible){for(let i=0;i<shardCount;i++){const v=shards[i],f=smooth(v.delay,1,fracture);dummy.position.set(v.x*(1+f*2.8),v.y*(1+f*2.8)-f*f*2,3+v.z*.15+f*5);dummy.rotation.set(v.rx*f*1.5,v.ry*f*1.8,v.rx+f*3);dummy.scale.setScalar(v.size*(1-f*.2));dummy.updateMatrix();glass.setMatrixAt(i,dummy.matrix);}glass.instanceMatrix.needsUpdate=true;}
+  s.render(()=>composeEmergence(s,backdrop,explorer.root,glass,p));
+  projected.copy(explorer.root.position);projected.y-=.34*explorer.root.scale.x;projected.project(s.camera);
+  state.emergence={characterId:explorer.root.uuid,visible:explorer.root.visible,settled:p>=1,progress:handoff,postViewport:post,
+    center:{x:(projected.x*.5+.5)*s.width,y:(.5-projected.y*.5)*s.height},scale:explorer.root.scale.x,
+    transparentCanvas:s.renderer.getContextAttributes().alpha,backdropGone:p>=1};
+ },dispose(){ro.disconnect();window.removeEventListener('resize',measure);tiles.dispose();s.scene.traverse(o=>{o.geometry?.dispose();if(o.material&&!Array.isArray(o.material))o.material.dispose();});s.dispose();}};
 }
 const menu=$('#menu'),detail=$('#detail');let scrollBeforeDialog=0,detailBusy=false;
 function syncPause(){document.body.classList.toggle('motion-paused',paused);$('#pause').textContent=paused?'Resume motion':'Pause motion';$('#pause').setAttribute('aria-pressed',String(paused));}syncPause();
