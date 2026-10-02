@@ -23,7 +23,7 @@
   let wasSuspended = true, lastUI = '', resizing = false;
   let lastEnding = -1, lastHeader = -1, lastFull = null, lastDark = -1, lastPost = -1;
   let visualProgress = 0, smoothingTime = null;
-  let inputSequence = 0, resizedTo = innerWidth + 'x' + innerHeight;
+  let inputSequence = 0, processedInputSequence = 0, resizedTo = innerWidth + 'x' + innerHeight;
   const round = n => Math.round(n * 100000) / 100000;
   const hasDialog = () => Boolean(menuElement?.open || detailElement?.open);
   const isPaused = () => document.body.classList.contains('motion-paused');
@@ -166,7 +166,7 @@
     data.mode = p >= 1 ? 'ended' : y < top - 1 ? 'before' : blocked && isPaused() ? 'paused' : data.auto ? 'playing' : reverse ? 'reverse' : 'manual';
     data.telemetry = { top, span, height, y, cursor, dt, blocked, touching, inputUntil, time, reverse };
     updateUI(data.renderProgress);
-    previousY = y; previousFull = full;
+    previousY = y; previousFull = full; processedInputSequence = inputSequence;
   }
   data.step = step;
   data.connectRenderer = () => { attached = true; cancelAnimationFrame(fallbackFrame); lastTime = null; };
@@ -177,7 +177,10 @@
     resizedTo = dimensions;
     if (resizing) { layoutDirty = true; return; }
     const inputAtResize = inputSequence;
-    const p = data.progress, post = data.postViewport, preserve = previousY >= top - 1 && p > 0;
+    const p = data.progress, post = data.postViewport;
+    // An input already delivered this frame may precede this resize event.
+    // Do not overwrite it using the previous frame's progress.
+    const preserve = previousY >= top - 1 && p > 0 && inputSequence === processedInputSequence;
     resizing = true;
     requestAnimationFrame(() => {
       measure();
