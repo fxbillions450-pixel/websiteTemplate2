@@ -23,6 +23,7 @@
   let wasSuspended = true, lastUI = '', resizing = false;
   let lastEnding = -1, lastHeader = -1, lastFull = null, lastDark = -1, lastPost = -1;
   let visualProgress = 0, smoothingTime = null;
+  let inputSequence = 0, resizedTo = innerWidth + 'x' + innerHeight;
   const round = n => Math.round(n * 100000) / 100000;
   const hasDialog = () => Boolean(menuElement?.open || detailElement?.open);
   const isPaused = () => document.body.classList.contains('motion-paused');
@@ -48,6 +49,7 @@
     if (hasDialog()) return;
     const relevant = scrollY >= top - height && scrollY <= top + span + height;
     if (!relevant || !direction) return;
+    inputSequence++;
     reverse = direction < 0;
     data.reverse = reverse;
     data.auto = false;
@@ -170,12 +172,16 @@
   data.connectRenderer = () => { attached = true; cancelAnimationFrame(fallbackFrame); lastTime = null; };
   function fallback(time) { step(time); if (!attached) fallbackFrame = requestAnimationFrame(fallback); }
   function resize() {
-    if (resizing) return;
+    const dimensions = innerWidth + 'x' + innerHeight;
+    if (resizedTo === dimensions) return;
+    resizedTo = dimensions;
+    if (resizing) { layoutDirty = true; return; }
+    const inputAtResize = inputSequence;
     const p = data.progress, post = data.postViewport, preserve = previousY >= top - 1 && p > 0;
     resizing = true;
     requestAnimationFrame(() => {
       measure();
-      if (preserve) { write(top + p * span + (p >= 1 ? post * height : 0)); previousY = scrollY; data.progress = data.renderProgress = visualProgress = p; }
+      if (preserve && inputAtResize === inputSequence) { write(top + p * span + (p >= 1 ? post * height : 0)); previousY = scrollY; data.progress = data.renderProgress = visualProgress = p; }
       lastTime = null; resizing = false;
     });
   }

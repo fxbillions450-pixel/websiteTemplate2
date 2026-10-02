@@ -1,19 +1,21 @@
-# Motion Lab — independent Lusion-style prototype
+# Motion Lab — reversible character emergence
 
-Three representative scenes, not the complete 48-effect reconstruction. This isolated preview does not modify the approved portfolio application or production branch.
+Independent Lusion-style prototype with three representative scenes: procedural hollow-cross physics, matched RGB/depth image interaction, and an 18-second reversible portal journey. This is not a complete or frame-identical reconstruction of Lusion's website.
 
-## Included
-- Procedural hollow six-arm cross bodies; seven-sphere contact proxies, localized pointer impulses, inertia and palette transitions.
-- Original 3D sculpture rendered to a matched RGB/depth target; depth-dependent image displacement, not CSS card tilt.
-- Scroll-linked aperture, rectangular block corridor, folding phase, light transition, independently articulated explorer and reversible instanced glass fragments.
-- Scene menu, accessible detail dialog with Back support, pause, timeline scrubber and hold-to-slow for autonomous motion.
-- Native document scrolling, touch-safe interaction regions, reduced motion and graphics failure messages.
+## Journey behavior
+Scroll naturally until the cinematic section fills the viewport. It starts automatically at normal speed. There is no snap, transport slider, percentage, hold-to-slow or exit button. Upward scroll always takes control and reverses the scene.
 
-## Deliberate limitations
-No original Lusion models, fonts, images or production source. Collision proxies and solver are independent approximations. The card shader uses independently generated artwork, not original depth maps, and does not yet implement the full focus-blur/ripple treatment. The tunnel's schedule, animation tracks and 170 glass fragments are authored for this example, not original measured equivalents. This is not the full reel, all project pages, all 48 effects, or a frame-perfect match. Hold changes the autonomous visual clock; it does not intercept native scroll.
+At the end the same 3D explorer crosses the contracting corridor frame and settles against the dark page. Autoplay stops. The character stays visible without a timer while you read; continued downward scrolling moves into ordinary content. It then scrolls out with its containing section before the final footer. Reverse scroll retraces the handoff and the tunnel. No duplicate character, screenshot substitution, modal or route switch is used.
+
+Keyboard Space pauses/resumes the cinematic motion; Escape pauses. Reduced-motion preference disables automatic progression, not native scrolling. The existing Scenes menu and depth-detail dialog remain available outside the cinematic sequence.
+
+## Source files
+`ending-handoff.js` owns the two-pass rendering and responsive final pose. `ending-handoff.css` owns the document layering. `journey-player.js` owns the cinematic coordinate and after-scroll position. `main.js` builds the original scenes. `motion-runtime.js` retains GPU tile transforms and adaptive resolution.
+
+The `#journey-range` marker determines cinematic distance. `#continuation` is ordinary editable page content. The final `.page-footer` is outside the sticky context so the explorer does not remain fixed over the whole website.
 
 ## Run
-Serve this folder with a static HTTP server and open index.html. Its pinned Three.js imports require access to jsDelivr. The QA-generated standalone.html includes the library and code and runs offline without external assets or a server. No font files are bundled. The generated ZIP includes the Three.js MIT license.
+Serve this folder with a static HTTP server. The modular source uses pinned Three.js imports from jsDelivr. The build script generates a bundled `index.html` and a completely self-contained `standalone.html`; the latter requires no library download. No original Lusion models, photographs or fonts are included. Three.js is distributed under its MIT license.
 
-## Where to review
-Start at the hero; move the pointer or tap. Scroll to the depth study. Click it to exercise the detail transition and browser Back. Continue into the journey or choose it from Scenes. The bottom scrubber can jump between phases; scrolling backwards reverses the sequence.
+## Verification
+The repository workflow runs desktop Chromium, touch-enabled Chromium and WebKit at phone widths, including actual visible-character pixel checks, stationary hold, subsequent page scroll, reversal and orientation changes. Refer to the accompanying result JSON files for executed results. Browser emulation is not a physical-phone frame-rate certification.

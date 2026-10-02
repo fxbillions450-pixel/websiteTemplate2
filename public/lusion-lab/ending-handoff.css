@@ -1,8 +1,8 @@
 /* Character-to-document handoff. The 700svh cinematic range stays unchanged;
    following content extends the SAME sticky context, without a fixed layer. */
 #journey{height:auto;isolation:isolate;--ending-dark:0}
-#journey>.journey-sticky{margin-bottom:-100vh;margin-bottom:-100dvh;z-index:2;pointer-events:none}
-#journey-range{position:relative;height:700svh;pointer-events:none}
+#journey>.journey-sticky{margin-bottom:0;z-index:2;pointer-events:none}
+#journey-range{position:relative;height:700svh;margin-top:-100vh;margin-top:-100dvh;pointer-events:none}
 .ending-backdrop{position:absolute;inset:0;z-index:0;pointer-events:none;opacity:var(--ending-dark);background:radial-gradient(ellipse at 70% 42%,#222950 0%,#0e1222 38%,#080b13 75%)}
 #tunnel-stage{z-index:2;background:transparent}
 #aperture-mask,.journey-title{z-index:4}
